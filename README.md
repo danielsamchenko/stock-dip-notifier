@@ -54,7 +54,7 @@ alembic upgrade head
 python -m dipdetector.ingest.ingest_prices --days 30
 ```
 
-## API usage (read-only)
+## API usage
 
 Run the FastAPI app:
 
@@ -70,6 +70,29 @@ curl "http://127.0.0.1:8000/dips?rule=drawdown_20d"
 curl "http://127.0.0.1:8000/alerts?days=7&symbol=AAPL"
 curl "http://127.0.0.1:8000/tickers/AAPL"
 ```
+
+## Docker Compose Quickstart
+
+This runs Postgres + the API in containers and gives you one-shot jobs for
+migrations, ingestion, and analysis.
+
+```bash
+cp .env.example .env
+make up
+make migrate
+make ingest
+make analyze
+```
+
+API endpoints:
+
+```bash
+curl "http://127.0.0.1:8000/health"
+curl "http://127.0.0.1:8000/dips"
+curl "http://127.0.0.1:8000/alerts"
+```
+
+If the database isnt ready yet, retry `make migrate` after a few seconds
 
 ## Testing
 

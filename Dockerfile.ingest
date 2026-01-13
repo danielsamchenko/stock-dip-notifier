@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1
+
+COPY pyproject.toml /app/pyproject.toml
+COPY src /app/src
+
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir .
+
+CMD ["python", "-m", "dipdetector.ingest.ingest_prices", "--days", "30"]

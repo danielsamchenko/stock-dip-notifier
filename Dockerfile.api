@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1
+
+COPY pyproject.toml /app/pyproject.toml
+COPY src /app/src
+COPY alembic /app/alembic
+COPY alembic.ini /app/alembic.ini
+
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir .
+
+CMD ["uvicorn", "dipdetector.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
