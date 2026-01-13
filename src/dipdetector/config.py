@@ -44,3 +44,43 @@ def get_tickers() -> list[str]:
         if tickers:
             return tickers
     return DEFAULT_TICKERS.copy()
+
+
+def _get_float(name: str, default: float) -> float:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a float, got: {raw!r}") from exc
+
+
+def _get_int(name: str, default: int) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer, got: {raw!r}") from exc
+
+
+def get_dip_1d_threshold() -> float:
+    return _get_float("DIP_1D_THRESHOLD", -5.0)
+
+
+def get_dip_nday_window() -> int:
+    return _get_int("DIP_NDAY_WINDOW", 20)
+
+
+def get_dip_nday_threshold() -> float:
+    return _get_float("DIP_NDAY_THRESHOLD", -8.0)
+
+
+def get_dip_52w_window() -> int:
+    return _get_int("DIP_52W_WINDOW", 252)
+
+
+def get_dip_52w_threshold() -> float:
+    return _get_float("DIP_52W_THRESHOLD", -15.0)

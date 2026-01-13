@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    JSON,
     Numeric,
     String,
     UniqueConstraint,
@@ -37,6 +38,8 @@ class Ticker(Base):
     )
 
     prices: Mapped[list["DailyPrice"]] = relationship(back_populates="ticker")
+    signals: Mapped[list["Signal"]] = relationship(back_populates="ticker")
+    alerts: Mapped[list["Alert"]] = relationship(back_populates="ticker")
 
 
 class DailyPrice(Base):
@@ -62,3 +65,45 @@ class DailyPrice(Base):
     )
 
     ticker: Mapped[Ticker] = relationship(back_populates="prices")
+
+
+class Signal(Base):
+    __tablename__ = "signals"
+    __table_args__ = (
+        UniqueConstraint("ticker_id", "date", "rule", name="uq_signals_ticker_date_rule"),
+        Index("ix_signals_date", "date"),
+        Index("ix_signals_ticker_date", "ticker_id", "date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticker_id: Mapped[int] = mapped_column(ForeignKey("tickers.id"), nullable=False)
+    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    rule: Mapped[str] = mapped_column(String(32), nullable=False)
+    value: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    ticker: Mapped[Ticker] = relationship(back_populates="signals")
+
+
+class Alert(Base):
+    __tablename__ = "alerts"
+    __table_args__ = (
+        UniqueConstraint("ticker_id", "date", "rule", name="uq_alerts_ticker_date_rule"),
+        Index("ix_alerts_date", "date"),
+        Index("ix_alerts_ticker_date", "ticker_id", "date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ticker_id: Mapped[int] = mapped_column(ForeignKey("tickers.id"), nullable=False)
+    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    rule: Mapped[str] = mapped_column(String(32), nullable=False)
+    magnitude: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
+    threshold: Mapped[float] = mapped_column(Numeric(12, 4), nullable=False)
+    details_json: Mapped[dict | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    ticker: Mapped[Ticker] = relationship(back_populates="alerts")

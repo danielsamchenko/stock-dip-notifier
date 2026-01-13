@@ -54,6 +54,23 @@ alembic upgrade head
 python -m dipdetector.ingest.ingest_prices --days 30
 ```
 
+## API usage (read-only)
+
+Run the FastAPI app:
+
+```bash
+uvicorn dipdetector.api.main:app --reload
+```
+
+Example requests:
+
+```bash
+curl "http://127.0.0.1:8000/health"
+curl "http://127.0.0.1:8000/dips?rule=drawdown_20d"
+curl "http://127.0.0.1:8000/alerts?days=7&symbol=AAPL"
+curl "http://127.0.0.1:8000/tickers/AAPL"
+```
+
 ## Testing
 
 ```bash
