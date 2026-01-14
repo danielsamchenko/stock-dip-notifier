@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Pressable,
   RefreshControl,
   StatusBar,
@@ -13,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getCurrentDips, refreshBackend } from "../src/lib/api";
 import { formatPercent } from "../src/lib/format";
+import { getLogoUrl } from "../src/lib/logos";
 import { CurrentDipRow } from "../src/types";
 
 export default function DipsScreen() {
@@ -117,16 +119,19 @@ export default function DipsScreen() {
           keyExtractor={(item) => `${item.symbol}-${item.date}`}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshNow} />}
           ListEmptyComponent={<Text style={styles.helperText}>No current dips.</Text>}
-          renderItem={({ item }) => (
-            <View style={styles.row}>
-              <View>
+        renderItem={({ item }) => (
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Logo symbol={item.symbol} />
+              <View style={styles.symbolBlock}>
                 <Text style={styles.symbol}>{item.symbol}</Text>
                 <Text style={styles.date}>{item.date || "n/a"}</Text>
               </View>
-              <View style={styles.valueGroup}>
-                <Text style={styles.value}>{formatPercent(item.dip)}</Text>
-                <Text style={styles.windowLabel}>{formatWindow(item.window_days)}</Text>
-              </View>
+            </View>
+            <View style={styles.valueGroup}>
+              <Text style={styles.value}>{formatPercent(item.dip)}</Text>
+              <Text style={styles.windowLabel}>{formatWindow(item.window_days)}</Text>
+            </View>
             </View>
           )}
         />
@@ -144,6 +149,30 @@ function formatWindow(value: number | null): string {
     return "";
   }
   return `(${value}d)`;
+}
+
+function Logo({ symbol }: { symbol: string }) {
+  const [failed, setFailed] = useState(false);
+  const letter = symbol ? symbol[0] : "?";
+
+  if (!symbol || failed) {
+    return (
+      <View style={[styles.logoContainer, styles.logoFallback]}>
+        <Text style={styles.logoText}>{letter}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.logoContainer}>
+      <Image
+        source={{ uri: getLogoUrl(symbol) }}
+        style={styles.logoImage}
+        resizeMode="contain"
+        onError={() => setFailed(true)}
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -191,6 +220,36 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
+  },
+  rowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  symbolBlock: {
+    marginLeft: 10,
+  },
+  logoContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoImage: {
+    width: 24,
+    height: 24,
+  },
+  logoFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoText: {
+    color: "#111827",
+    fontSize: 12,
+    fontWeight: "600",
   },
   symbol: {
     fontSize: 18,
