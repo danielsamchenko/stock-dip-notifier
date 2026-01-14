@@ -20,3 +20,10 @@ htmlcov/
 
 # OS
 .DS_Store
+
+# Expo client
+mobile-web-client/node_modules/
+mobile-web-client/.expo/
+mobile-web-client/.expo-shared/
+mobile-web-client/dist/
+mobile-web-client/web-build/

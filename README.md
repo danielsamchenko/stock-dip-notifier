@@ -71,6 +71,15 @@ curl "http://127.0.0.1:8000/alerts?days=7&symbol=AAPL"
 curl "http://127.0.0.1:8000/tickers/AAPL"
 ```
 
+## CORS for Expo Web
+
+Expo Web runs in a browser, so the API must allow CORS. By default the API allows
+local Expo dev origins. To override, set `CORS_ALLOW_ORIGINS` in your `.env`:
+
+```bash
+CORS_ALLOW_ORIGINS=http://localhost:19006,http://localhost:8081
+```
+
 ## Docker Compose Quickstart
 
 This runs Postgres + the API in containers and gives you one-shot jobs for

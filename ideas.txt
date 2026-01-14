@@ -1,9 +1,11 @@
-- expo app for ios and android and web
 - logos for each stock?
-- define dip one day /= dip multi day
 - add more indicators (rsi, macd, bollinger bands)
-
 - red/green indicator
+- web icon, app icon
+
+- define dip one day /= dip multi day
+- how far back am I getting data from
+- auto
 - digest buy sell hold
 - analyze news 
 

@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Stock Dip Notifier",
+    "slug": "stock-dip-notifier",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "stockdip",
+    "plugins": ["expo-router"],
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
