@@ -8,9 +8,11 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  useColorScheme,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import { getCurrentDips, refreshBackend } from "../src/lib/api";
 import { formatPercent } from "../src/lib/format";
@@ -18,11 +20,14 @@ import { getLogoUrl } from "../src/lib/logos";
 import { CurrentDipRow } from "../src/types";
 
 export default function DipsScreen() {
+  const systemScheme = useColorScheme();
+  const [isDark, setIsDark] = useState<boolean>(systemScheme === "dark");
   const [dips, setDips] = useState<CurrentDipRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const theme = isDark ? darkTheme : lightTheme;
 
   const loadDips = useCallback(async () => {
     setError(null);
@@ -74,11 +79,11 @@ export default function DipsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" />
-          <Text style={styles.helperText}>Loading dips...</Text>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+        <View style={[styles.centered, { backgroundColor: theme.background }]}>
+          <ActivityIndicator size="large" color={theme.text} />
+          <Text style={[styles.helperText, { color: theme.muted }]}>Loading dips...</Text>
         </View>
       </SafeAreaView>
     );
@@ -86,12 +91,12 @@ export default function DipsScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>{error}</Text>
-          <Pressable style={styles.retryButton} onPress={loadDips}>
-            <Text style={styles.retryText}>Retry</Text>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+        <View style={[styles.centered, { backgroundColor: theme.background }]}>
+          <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+          <Pressable style={[styles.retryButton, { backgroundColor: theme.accent }]} onPress={loadDips}>
+            <Text style={[styles.retryText, { color: theme.accentText }]}>Retry</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -99,17 +104,27 @@ export default function DipsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Stock Dips</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Stock Dips</Text>
+          <Pressable
+            style={[styles.toggleButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+            onPress={() => setIsDark((prev) => !prev)}
+          >
+            <Ionicons
+              name={isDark ? "sunny-outline" : "moon-outline"}
+              size={18}
+              color={theme.text}
+            />
+          </Pressable>
         </View>
         <Pressable style={styles.updatedRow} onPress={refreshNow} disabled={refreshing}>
-          <Text style={styles.updatedText}>
+          <Text style={[styles.updatedText, { color: theme.muted }]}>
             Last updated: {lastUpdated ? formatUpdatedAt(lastUpdated) : "—"}
           </Text>
-          <Text style={styles.updatedHint}>
+          <Text style={[styles.updatedHint, { color: theme.mutedLight }]}>
             {refreshing ? "Updating now..." : "Tap to refresh"}
           </Text>
         </Pressable>
@@ -117,21 +132,34 @@ export default function DipsScreen() {
         <FlatList
           data={dips}
           keyExtractor={(item) => `${item.symbol}-${item.date}`}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshNow} />}
-          ListEmptyComponent={<Text style={styles.helperText}>No current dips.</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <Logo symbol={item.symbol} />
-              <View style={styles.symbolBlock}>
-                <Text style={styles.symbol}>{item.symbol}</Text>
-                <Text style={styles.date}>{item.date || "n/a"}</Text>
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={refreshNow}
+              tintColor={theme.text}
+              colors={[theme.text]}
+            />
+          }
+          ListEmptyComponent={
+            <Text style={[styles.helperText, { color: theme.muted }]}>No current dips.</Text>
+          }
+          renderItem={({ item }) => (
+            <View style={[styles.row, { borderBottomColor: theme.border }]}>
+              <View style={styles.rowLeft}>
+                <Logo symbol={item.symbol} theme={theme} />
+                <View style={styles.symbolBlock}>
+                  <Text style={[styles.symbol, { color: theme.text }]}>{item.symbol}</Text>
+                  <Text style={[styles.date, { color: theme.muted }]}>{item.date || "n/a"}</Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.valueGroup}>
-              <Text style={styles.value}>{formatPercent(item.dip)}</Text>
-              <Text style={styles.windowLabel}>{formatWindow(item.window_days)}</Text>
-            </View>
+              <View style={styles.valueGroup}>
+                <Text style={[styles.value, { color: theme.text }]}>
+                  {formatPercent(item.dip)}
+                </Text>
+                <Text style={[styles.windowLabel, { color: theme.muted }]}>
+                  {formatWindow(item.window_days)}
+                </Text>
+              </View>
             </View>
           )}
         />
@@ -151,20 +179,62 @@ function formatWindow(value: number | null): string {
   return `(${value}d)`;
 }
 
-function Logo({ symbol }: { symbol: string }) {
+type Theme = {
+  background: string;
+  card: string;
+  text: string;
+  muted: string;
+  mutedLight: string;
+  border: string;
+  accent: string;
+  accentText: string;
+  error: string;
+};
+
+const lightTheme: Theme = {
+  background: "#ffffff",
+  card: "#ffffff",
+  text: "#111827",
+  muted: "#6b7280",
+  mutedLight: "#9ca3af",
+  border: "#e5e7eb",
+  accent: "#111827",
+  accentText: "#ffffff",
+  error: "#b91c1c",
+};
+
+const darkTheme: Theme = {
+  background: "#000000",
+  card: "#0b0b0b",
+  text: "#f9fafb",
+  muted: "#9ca3af",
+  mutedLight: "#6b7280",
+  border: "#1f1f1f",
+  accent: "#f9fafb",
+  accentText: "#111827",
+  error: "#f87171",
+};
+
+function Logo({ symbol, theme }: { symbol: string; theme: Theme }) {
   const [failed, setFailed] = useState(false);
   const letter = symbol ? symbol[0] : "?";
 
   if (!symbol || failed) {
     return (
-      <View style={[styles.logoContainer, styles.logoFallback]}>
-        <Text style={styles.logoText}>{letter}</Text>
+      <View
+        style={[
+          styles.logoContainer,
+          styles.logoFallback,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
+        <Text style={[styles.logoText, { color: theme.text }]}>{letter}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.logoContainer}>
+    <View style={[styles.logoContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
       <Image
         source={{ uri: getLogoUrl(symbol) }}
         style={styles.logoImage}
@@ -206,7 +276,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   updatedHint: {
-    color: "#9ca3af",
     fontSize: 11,
   },
   title: {
@@ -219,7 +288,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
   },
   rowLeft: {
     flexDirection: "row",
@@ -232,9 +300,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 6,
-    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#e5e7eb",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -247,7 +313,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logoText: {
-    color: "#111827",
     fontSize: 12,
     fontWeight: "600",
   },
@@ -257,24 +322,19 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 16,
-    color: "#111827",
   },
   valueGroup: {
     alignItems: "flex-end",
   },
   windowLabel: {
-    color: "#6b7280",
     fontSize: 12,
   },
   date: {
-    color: "#6b7280",
   },
   helperText: {
     marginTop: 8,
-    color: "#6b7280",
   },
   errorText: {
-    color: "#b91c1c",
     marginBottom: 12,
     textAlign: "center",
   },
@@ -282,10 +342,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: "#111827",
   },
   retryText: {
-    color: "#fff",
     fontWeight: "600",
+  },
+  toggleButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
