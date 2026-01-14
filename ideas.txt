@@ -1,0 +1,16 @@
+- expo app for ios and android and web
+- logos for each stock?
+- define dip one day /= dip multi day
+- add more indicators (rsi, macd, bollinger bands)
+
+- red/green indicator
+- digest buy sell hold
+- analyze news 
+
+
+— Local Kubernetes (kind)
+— AWS Infrastructure (Terraform: VPC/EKS/ECR/optional RDS)
+— CI (GitHub Actions: test/build/push)
+— CD to EKS (Helm deploy, environments)
+— Ingress + DNS + TLS (ALB, Route53, cert-manager)
+— Observability + Ops Polish
