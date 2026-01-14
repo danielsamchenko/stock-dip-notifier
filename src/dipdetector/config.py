@@ -5,16 +5,7 @@ from __future__ import annotations
 import os
 from typing import Iterable
 
-DEFAULT_TICKERS = [
-    "AAPL",
-    "MSFT",
-    "AMZN",
-    "GOOGL",
-    "META",
-    "NVDA",
-    "TSLA",
-    "SPY",
-]
+from dipdetector.tickers import DEFAULT_TICKERS
 
 
 def get_database_url() -> str:

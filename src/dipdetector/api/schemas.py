@@ -32,6 +32,19 @@ class SignalOut(BaseModel):
     created_at: datetime
 
 
+class CurrentDipItem(BaseModel):
+    symbol: str
+    date: date
+    dip: float
+    window_days: int
+
+
+class CurrentDipsResponse(BaseModel):
+    asof: date | None
+    windows: list[int]
+    items: list[CurrentDipItem]
+
+
 class PriceOut(BaseModel):
     symbol: str
     date: date

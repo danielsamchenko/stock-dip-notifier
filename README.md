@@ -18,9 +18,9 @@ Required:
 - `DATABASE_URL` (e.g. `postgresql+psycopg2://user:pass@localhost:5432/dips`)
 
 Optional:
-- `TICKERS` (comma-separated symbols)
 - `LOG_LEVEL` (default `INFO`)
 - `PRICE_SOURCE` (default `yfinance`)
+- `TICKERS` (comma-separated symbols; overrides the default list in `src/dipdetector/tickers.py`)
 
 Copy the example file and edit:
 
@@ -67,6 +67,7 @@ Example requests:
 ```bash
 curl "http://127.0.0.1:8000/health"
 curl "http://127.0.0.1:8000/dips?rule=drawdown_20d"
+curl "http://127.0.0.1:8000/dips/current"
 curl "http://127.0.0.1:8000/alerts?days=7&symbol=AAPL"
 curl "http://127.0.0.1:8000/tickers/AAPL"
 ```

@@ -1,19 +1,25 @@
 import { API_BASE_URL } from "./config";
-import { AlertRow, DipRow, PriceRow, TickerDetail } from "../types";
+import { AlertRow, CurrentDipRow, DipRow, PriceRow, TickerDetail } from "../types";
 
 const REQUEST_TIMEOUT_MS = 8000;
+const REFRESH_TIMEOUT_MS = 120000;
 
 function parseNumber(value: unknown): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-async function fetchJson<T>(path: string): Promise<T> {
+async function fetchJson<T>(
+  path: string,
+  options?: { method?: string; timeoutMs?: number },
+): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutMs = options?.timeoutMs ?? REQUEST_TIMEOUT_MS;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: options?.method ?? "GET",
       signal: controller.signal,
     });
 
@@ -39,6 +45,16 @@ function toDipRow(item: Record<string, unknown>): DipRow {
     rule: String(item.rule ?? ""),
     value: parseNumber(item.value),
     created_at: item.created_at ? String(item.created_at) : null,
+  };
+}
+
+function toCurrentDipRow(item: Record<string, unknown>): CurrentDipRow {
+  const windowValue = parseNumber(item.window_days);
+  return {
+    symbol: String(item.symbol ?? ""),
+    date: String(item.date ?? ""),
+    dip: parseNumber(item.dip),
+    window_days: windowValue === null ? null : Math.round(windowValue),
   };
 }
 
@@ -78,6 +94,14 @@ export async function getDips(rule: string, limit: number): Promise<DipRow[]> {
   return data.map((item) => toDipRow(item as Record<string, unknown>));
 }
 
+export async function getCurrentDips(limit: number): Promise<CurrentDipRow[]> {
+  const query = `limit=${limit}`;
+  const data = await fetchJson<Record<string, unknown>>(`/dips/current?${query}`);
+  const items = Array.isArray(data.items) ? data.items : [];
+
+  return items.map((item) => toCurrentDipRow(item as Record<string, unknown>));
+}
+
 export async function getTicker(symbol: string): Promise<TickerDetail> {
   const data = await fetchJson<Record<string, unknown>>(`/tickers/${symbol}`);
 
@@ -96,4 +120,8 @@ export async function getTicker(symbol: string): Promise<TickerDetail> {
       ? data.recent_alerts.map((item) => toAlertRow(item as Record<string, unknown>))
       : [],
   };
+}
+
+export async function refreshBackend(days = 30): Promise<void> {
+  await fetchJson(`/refresh?days=${days}`, { method: "POST", timeoutMs: REFRESH_TIMEOUT_MS });
 }

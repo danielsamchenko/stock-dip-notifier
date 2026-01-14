@@ -6,6 +6,13 @@ export type DipRow = {
   created_at: string | null;
 };
 
+export type CurrentDipRow = {
+  symbol: string;
+  date: string;
+  dip: number | null;
+  window_days: number | null;
+};
+
 export type AlertRow = {
   symbol: string;
   date: string;

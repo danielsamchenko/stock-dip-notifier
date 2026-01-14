@@ -11,55 +11,72 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getDips } from "../src/lib/api";
+import { getCurrentDips, refreshBackend } from "../src/lib/api";
 import { formatPercent } from "../src/lib/format";
-import { DipRow } from "../src/types";
-
-const RULES = ["drawdown_20d", "drop_1d", "drawdown_252d"] as const;
+import { CurrentDipRow } from "../src/types";
 
 export default function DipsScreen() {
-  const [rule, setRule] = useState<string>("drawdown_20d");
-  const [dips, setDips] = useState<DipRow[]>([]);
+  const [dips, setDips] = useState<CurrentDipRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const loadDips = useCallback(async () => {
     setError(null);
     try {
-      const data = await getDips(rule, 25);
+      const data = await getCurrentDips(50);
       const sorted = [...data].sort((a, b) => {
-        const av = a.value ?? Number.POSITIVE_INFINITY;
-        const bv = b.value ?? Number.POSITIVE_INFINITY;
+        const av = a.dip ?? Number.POSITIVE_INFINITY;
+        const bv = b.dip ?? Number.POSITIVE_INFINITY;
         return av - bv;
       });
       setDips(sorted);
+      setLastUpdated(new Date());
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load dips";
       setError(message);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
-  }, [rule]);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     loadDips();
   }, [loadDips]);
 
-  const onRefresh = () => {
+  const refreshNow = useCallback(async () => {
+    if (refreshing) {
+      return;
+    }
     setRefreshing(true);
-    loadDips();
-  };
+    setError(null);
+    try {
+      await refreshBackend();
+      await loadDips();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to refresh data";
+      setError(message);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadDips, refreshing]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshNow();
+    }, 10 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [refreshNow]);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.helperText}>Loading dips...</Text>
+          <ActivityIndicator size="large" />
+          <Text style={styles.helperText}>Loading dips...</Text>
         </View>
       </SafeAreaView>
     );
@@ -83,48 +100,50 @@ export default function DipsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>Stock Dips</Text>
-        <Pressable style={styles.refreshButton} onPress={loadDips}>
-          <Text style={styles.refreshText}>Refresh</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Stock Dips</Text>
+        </View>
+        <Pressable style={styles.updatedRow} onPress={refreshNow} disabled={refreshing}>
+          <Text style={styles.updatedText}>
+            Last updated: {lastUpdated ? formatUpdatedAt(lastUpdated) : "—"}
+          </Text>
+          <Text style={styles.updatedHint}>
+            {refreshing ? "Updating now..." : "Tap to refresh"}
+          </Text>
         </Pressable>
-      </View>
 
-      <View style={styles.ruleRow}>
-        {RULES.map((item) => {
-          const active = item === rule;
-          return (
-            <Pressable
-              key={item}
-              onPress={() => setRule(item)}
-              style={[styles.ruleButton, active && styles.ruleButtonActive]}
-            >
-              <Text style={[styles.ruleText, active && styles.ruleTextActive]}>
-                {item}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <FlatList
-        data={dips}
-        keyExtractor={(item) => `${item.symbol}-${item.date}-${item.rule}`}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={<Text style={styles.helperText}>No dips found.</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <View>
-              <Text style={styles.symbol}>{item.symbol}</Text>
-              <Text style={styles.date}>{item.date || "n/a"}</Text>
+        <FlatList
+          data={dips}
+          keyExtractor={(item) => `${item.symbol}-${item.date}`}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshNow} />}
+          ListEmptyComponent={<Text style={styles.helperText}>No current dips.</Text>}
+          renderItem={({ item }) => (
+            <View style={styles.row}>
+              <View>
+                <Text style={styles.symbol}>{item.symbol}</Text>
+                <Text style={styles.date}>{item.date || "n/a"}</Text>
+              </View>
+              <View style={styles.valueGroup}>
+                <Text style={styles.value}>{formatPercent(item.dip)}</Text>
+                <Text style={styles.windowLabel}>{formatWindow(item.window_days)}</Text>
+              </View>
             </View>
-            <Text style={styles.value}>{formatPercent(item.value)}</Text>
-          </View>
-        )}
-      />
+          )}
+        />
       </View>
     </SafeAreaView>
   );
+}
+
+function formatUpdatedAt(value: Date): string {
+  return value.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function formatWindow(value: number | null): string {
+  if (!value) {
+    return "";
+  }
+  return `(${value}d)`;
 }
 
 const styles = StyleSheet.create({
@@ -148,46 +167,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  updatedRow: {
     marginBottom: 12,
+  },
+  updatedText: {
+    color: "#6b7280",
+    fontSize: 12,
+  },
+  updatedHint: {
+    color: "#9ca3af",
+    fontSize: 11,
   },
   title: {
     fontSize: 24,
     fontWeight: "600",
-  },
-  refreshButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: "#111827",
-  },
-  refreshText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  ruleRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 12,
-  },
-  ruleButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  ruleButtonActive: {
-    backgroundColor: "#111827",
-    borderColor: "#111827",
-  },
-  ruleText: {
-    color: "#111827",
-    fontSize: 12,
-  },
-  ruleTextActive: {
-    color: "#fff",
   },
   row: {
     flexDirection: "row",
@@ -204,6 +199,13 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 16,
     color: "#111827",
+  },
+  valueGroup: {
+    alignItems: "flex-end",
+  },
+  windowLabel: {
+    color: "#6b7280",
+    fontSize: 12,
   },
   date: {
     color: "#6b7280",

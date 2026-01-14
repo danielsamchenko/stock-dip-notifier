@@ -7,7 +7,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from dipdetector.api.routes import alerts, dips, health, tickers
+from dipdetector.api.routes import alerts, dips, health, refresh, tickers
 
 
 def _get_cors_origins() -> list[str]:
@@ -27,7 +27,7 @@ app = FastAPI(title="Stock Dip Notifier API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_get_cors_origins(),
-    allow_methods=["GET", "OPTIONS"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
     allow_credentials=False,
 )
@@ -36,3 +36,4 @@ app.include_router(health.router)
 app.include_router(alerts.router)
 app.include_router(dips.router)
 app.include_router(tickers.router)
+app.include_router(refresh.router)
