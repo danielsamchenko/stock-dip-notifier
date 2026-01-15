@@ -19,7 +19,9 @@ import { router } from "expo-router";
 import { getCurrentDips, refreshBackend } from "../src/lib/api";
 import { formatPercent } from "../src/lib/format";
 import { getLogoUrl } from "../src/lib/logos";
+import { getMockSignalsForSymbol } from "../src/lib/mockSignals";
 import { CurrentDipRow } from "../src/types";
+import { ValueTrapMeter } from "../src/components/ValueTrapMeter";
 
 export default function DipsScreen() {
   const systemScheme = useColorScheme();
@@ -156,7 +158,6 @@ export default function DipsScreen() {
             {refreshing ? "Updating now..." : "Tap to refresh"}
           </Text>
         </Pressable>
-
         <FlatList
           data={dips}
           nativeID="dips-list"
@@ -208,13 +209,23 @@ export default function DipsScreen() {
                   </Text>
                 </View>
               </View>
-              <View style={styles.valueGroup}>
-                <Text style={[styles.value, { color: theme.text }]}>
-                  {formatPercent(item.dip)}
-                </Text>
-                <Text style={[styles.windowLabel, { color: theme.muted }]}>
-                  {formatWindow(item.window_days)}
-                </Text>
+              <View style={styles.rightGroup}>
+                <View style={styles.meterRow}>
+                  <View style={styles.meterWrapper}>
+                    <RowMeter symbol={item.symbol} isDark={isDark} />
+                    <Text style={[styles.meterLabel, { color: theme.mutedLight }]}>
+                      Recovery Score
+                    </Text>
+                  </View>
+                  <View style={styles.valueGroup}>
+                    <Text style={[styles.value, { color: theme.text }]}>
+                      {formatPercent(item.dip)}
+                    </Text>
+                    <Text style={[styles.windowLabel, { color: theme.muted }]}>
+                      {formatWindow(item.window_days)}
+                    </Text>
+                  </View>
+                </View>
               </View>
             </Pressable>
           )}
@@ -258,6 +269,23 @@ const lightTheme: Theme = {
   accentText: "#ffffff",
   error: "#b91c1c",
 };
+
+function RowMeter({
+  symbol,
+  isDark,
+}: {
+  symbol: string;
+  isDark: boolean;
+}) {
+  const signals = getMockSignalsForSymbol(symbol);
+  return (
+    <ValueTrapMeter
+      score={signals.score}
+      plateColor={isDark ? "#111111" : "#f8fafc"}
+      trackColor={isDark ? "#2a2a2a" : "#e5e7eb"}
+    />
+  );
+}
 
 const darkTheme: Theme = {
   background: "#000000",
@@ -344,7 +372,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -382,12 +410,29 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
   },
-  value: {
-    fontSize: 16,
-    fontWeight: "600",
+  rightGroup: {
+    alignItems: "flex-end",
+  },
+  meterLabel: {
+    fontSize: 10,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  meterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  meterWrapper: {
+    alignItems: "center",
+    marginRight: 8,
   },
   valueGroup: {
     alignItems: "flex-end",
+    minWidth: 64,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: "600",
   },
   windowLabel: {
     fontSize: 12,

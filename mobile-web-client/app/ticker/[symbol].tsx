@@ -138,7 +138,7 @@ export default function TickerScreen() {
         <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.chartTitle, { color: theme.text }]}>Chart coming soon</Text>
           <Text style={[styles.chartSubtitle, { color: theme.muted }]}>
-            (Will be populated after we upgrade data provider)
+            (Will be populated after I upgrade data provider)
           </Text>
         </View>
 

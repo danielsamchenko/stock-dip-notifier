@@ -37,6 +37,13 @@ class CurrentDipItem(BaseModel):
     date: date
     dip: float
     window_days: int
+    market_symbol: str
+    sector_symbol: str | None
+    ticker_return_pct: float | None
+    spy_return_pct: float | None
+    sector_return_pct: float | None
+    relative_to_spy_pp: float | None
+    relative_to_sector_pp: float | None
 
 
 class CurrentDipsResponse(BaseModel):

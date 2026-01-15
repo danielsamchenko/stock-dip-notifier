@@ -72,6 +72,9 @@ curl "http://127.0.0.1:8000/alerts?days=7&symbol=AAPL"
 curl "http://127.0.0.1:8000/tickers/AAPL"
 ```
 
+`/dips/current` returns one row per ticker with the best recent dip window plus
+market/sector-relative returns (percentage points vs SPY and a sector ETF).
+
 ## CORS for Expo Web
 
 Expo Web runs in a browser, so the API must allow CORS. By default the API allows

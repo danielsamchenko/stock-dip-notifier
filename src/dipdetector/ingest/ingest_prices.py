@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import time
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import date, timedelta
@@ -36,6 +37,49 @@ def ensure_ticker(session: Session, symbol: str) -> Ticker:
     session.add(ticker)
     session.flush()
     return ticker
+
+
+def maybe_set_ticker_name(
+    session: Session,
+    ticker: Ticker,
+    symbol: str,
+    provider: PriceProvider,
+) -> None:
+    if ticker.name:
+        return
+    if not isinstance(provider, YFinanceProvider):
+        return
+    name = _fetch_yfinance_name(symbol)
+    if name:
+        ticker.name = name
+        session.add(ticker)
+        session.flush()
+
+
+def _fetch_yfinance_name(symbol: str) -> str | None:
+    retries = [0.5, 1.0]
+    for attempt in range(len(retries) + 1):
+        try:
+            import yfinance as yf
+
+            ticker = yf.Ticker(symbol)
+            info = ticker.get_info() if hasattr(ticker, "get_info") else ticker.info
+            if not info:
+                return None
+            name = (
+                info.get("shortName")
+                or info.get("longName")
+                or info.get("displayName")
+                or info.get("name")
+            )
+            if name:
+                return str(name).strip()
+            return None
+        except Exception:  # pragma: no cover - best effort name lookup
+            if attempt < len(retries):
+                time.sleep(retries[attempt])
+            else:
+                return None
 
 
 def get_start_date(
@@ -115,6 +159,7 @@ def ingest_prices(
     for symbol in tickers_list:
         with session_factory() as session:
             ticker = ensure_ticker(session, symbol)
+            maybe_set_ticker_name(session, ticker, symbol, provider)
             start_date = get_start_date(session, ticker.id, source, end_date, days)
             bars = provider.fetch_daily_prices(symbol, start_date, end_date)
             inserted, updated = upsert_daily_prices(session, ticker.id, source, bars)
