@@ -9,6 +9,14 @@ function parseNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function parseString(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const text = String(value).trim();
+  return text.length ? text : null;
+}
+
 async function fetchJson<T>(
   path: string,
   options?: { method?: string; timeoutMs?: number },
@@ -55,6 +63,13 @@ function toCurrentDipRow(item: Record<string, unknown>): CurrentDipRow {
     date: String(item.date ?? ""),
     dip: parseNumber(item.dip),
     window_days: windowValue === null ? null : Math.round(windowValue),
+    market_symbol: parseString(item.market_symbol),
+    sector_symbol: parseString(item.sector_symbol),
+    ticker_return_pct: parseNumber(item.ticker_return_pct),
+    spy_return_pct: parseNumber(item.spy_return_pct),
+    sector_return_pct: parseNumber(item.sector_return_pct),
+    relative_to_spy_pp: parseNumber(item.relative_to_spy_pp),
+    relative_to_sector_pp: parseNumber(item.relative_to_sector_pp),
   };
 }
 

@@ -1,13 +1,15 @@
 {
   "expo": {
-    "name": "Stock Dip Notifier",
+    "name": "Stock Dips - Today's Biggest Pullbacks",
     "slug": "stock-dip-notifier",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "stockdip",
     "plugins": ["expo-router"],
+    "icon": "./assets/app-logo.png",
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/app-logo.png"
     }
   }
 }

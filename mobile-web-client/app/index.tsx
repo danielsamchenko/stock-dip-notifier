@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Platform,
   Pressable,
   RefreshControl,
   StatusBar,
@@ -13,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 import { getCurrentDips, refreshBackend } from "../src/lib/api";
 import { formatPercent } from "../src/lib/format";
@@ -77,6 +79,24 @@ export default function DipsScreen() {
     return () => clearInterval(interval);
   }, [refreshNow]);
 
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      return;
+    }
+    if (typeof document === "undefined") {
+      return;
+    }
+    const style = document.createElement("style");
+    style.textContent = `
+      #dips-list::-webkit-scrollbar { display: none; }
+      #dips-list { -ms-overflow-style: none; scrollbar-width: none; }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -108,7 +128,15 @@ export default function DipsScreen() {
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.headerRow}>
-          <Text style={[styles.title, { color: theme.text }]}>Stock Dips</Text>
+          <View style={styles.titleWrap}>
+            <Text
+              style={[styles.title, { color: theme.text }]}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              Stock Dips
+            </Text>
+          </View>
           <Pressable
             style={[styles.toggleButton, { backgroundColor: theme.card, borderColor: theme.border }]}
             onPress={() => setIsDark((prev) => !prev)}
@@ -131,6 +159,7 @@ export default function DipsScreen() {
 
         <FlatList
           data={dips}
+          nativeID="dips-list"
           keyExtractor={(item) => `${item.symbol}-${item.date}`}
           refreshControl={
             <RefreshControl
@@ -140,16 +169,43 @@ export default function DipsScreen() {
               colors={[theme.text]}
             />
           }
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <Text style={[styles.helperText, { color: theme.muted }]}>No current dips.</Text>
           }
           renderItem={({ item }) => (
-            <View style={[styles.row, { borderBottomColor: theme.border }]}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.row,
+                { borderBottomColor: theme.border, opacity: pressed ? 0.6 : 1 },
+              ]}
+              onPress={() =>
+                router.push({
+                  pathname: "/ticker/[symbol]",
+                  params: {
+                    symbol: item.symbol,
+                    dip: item.dip?.toString() ?? "",
+                    window_days: item.window_days?.toString() ?? "",
+                    date: item.date ?? "",
+                    market_symbol: item.market_symbol ?? "",
+                    sector_symbol: item.sector_symbol ?? "",
+                    ticker_return_pct: item.ticker_return_pct?.toString() ?? "",
+                    spy_return_pct: item.spy_return_pct?.toString() ?? "",
+                    sector_return_pct: item.sector_return_pct?.toString() ?? "",
+                    relative_to_spy_pp: item.relative_to_spy_pp?.toString() ?? "",
+                    relative_to_sector_pp: item.relative_to_sector_pp?.toString() ?? "",
+                  },
+                })
+              }
+              accessibilityRole="button"
+            >
               <View style={styles.rowLeft}>
                 <Logo symbol={item.symbol} theme={theme} />
                 <View style={styles.symbolBlock}>
                   <Text style={[styles.symbol, { color: theme.text }]}>{item.symbol}</Text>
-                  <Text style={[styles.date, { color: theme.muted }]}>{item.date || "n/a"}</Text>
+                  <Text style={[styles.date, { color: theme.muted }]}>
+                    As of {item.date || "n/a"}
+                  </Text>
                 </View>
               </View>
               <View style={styles.valueGroup}>
@@ -160,7 +216,7 @@ export default function DipsScreen() {
                   {formatWindow(item.window_days)}
                 </Text>
               </View>
-            </View>
+            </Pressable>
           )}
         />
       </View>
@@ -268,6 +324,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 4,
   },
+  titleWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
   updatedRow: {
     marginBottom: 12,
   },
@@ -292,6 +352,8 @@ const styles = StyleSheet.create({
   rowLeft: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
+    marginRight: 12,
   },
   symbolBlock: {
     marginLeft: 10,
@@ -322,6 +384,7 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 16,
+    fontWeight: "600",
   },
   valueGroup: {
     alignItems: "flex-end",
@@ -330,6 +393,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   date: {
+    fontSize: 12,
+    marginTop: 2,
   },
   helperText: {
     marginTop: 8,

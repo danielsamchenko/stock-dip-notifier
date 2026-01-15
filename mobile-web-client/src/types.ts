@@ -11,6 +11,13 @@ export type CurrentDipRow = {
   date: string;
   dip: number | null;
   window_days: number | null;
+  market_symbol: string | null;
+  sector_symbol: string | null;
+  ticker_return_pct: number | null;
+  spy_return_pct: number | null;
+  sector_return_pct: number | null;
+  relative_to_spy_pp: number | null;
+  relative_to_sector_pp: number | null;
 };
 
 export type AlertRow = {
