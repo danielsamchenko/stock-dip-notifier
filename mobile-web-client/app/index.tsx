@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   },
   meterLabel: {
     fontSize: 10,
-    marginTop: 4,
+    marginTop: 0,
     textAlign: "center",
   },
   meterRow: {

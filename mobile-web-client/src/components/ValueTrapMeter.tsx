@@ -85,13 +85,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dialContainer: {
-    padding: 4,
+    padding: 2,
     borderRadius: 10,
     alignItems: "flex-start",
   },
   dialClip: {
     width: DIAL_SIZE,
-    height: DIAL_SIZE / 2 + 14,
+    height: DIAL_SIZE / 2 + 6,
     overflow: "hidden",
     position: "relative",
   },
