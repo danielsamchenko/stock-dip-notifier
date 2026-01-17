@@ -52,6 +52,17 @@ class CurrentDipsResponse(BaseModel):
     items: list[CurrentDipItem]
 
 
+class AnalystRecommendationOut(BaseModel):
+    symbol: str
+    summary: str
+    strong_buy: int
+    buy: int
+    hold: int
+    sell: int
+    strong_sell: int
+    source: str
+
+
 class PriceOut(BaseModel):
     symbol: str
     date: date

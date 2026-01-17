@@ -1,5 +1,12 @@
 import { API_BASE_URL } from "./config";
-import { AlertRow, CurrentDipRow, DipRow, PriceRow, TickerDetail } from "../types";
+import {
+  AlertRow,
+  AnalystRecommendationResponse,
+  CurrentDipRow,
+  DipRow,
+  PriceRow,
+  TickerDetail,
+} from "../types";
 
 const REQUEST_TIMEOUT_MS = 8000;
 const REFRESH_TIMEOUT_MS = 120000;
@@ -98,6 +105,19 @@ function toPriceRow(item: Record<string, unknown>): PriceRow {
   };
 }
 
+function toRecommendation(item: Record<string, unknown>): AnalystRecommendationResponse {
+  return {
+    symbol: String(item.symbol ?? ""),
+    summary: String(item.summary ?? "Not available"),
+    strong_buy: parseNumber(item.strong_buy) ?? 0,
+    buy: parseNumber(item.buy) ?? 0,
+    hold: parseNumber(item.hold) ?? 0,
+    sell: parseNumber(item.sell) ?? 0,
+    strong_sell: parseNumber(item.strong_sell) ?? 0,
+    source: parseString(item.source),
+  };
+}
+
 export async function getDips(rule: string, limit: number): Promise<DipRow[]> {
   const query = `rule=${encodeURIComponent(rule)}&limit=${limit}`;
   const data = await fetchJson<unknown[]>(`/dips?${query}`);
@@ -135,6 +155,13 @@ export async function getTicker(symbol: string): Promise<TickerDetail> {
       ? data.recent_alerts.map((item) => toAlertRow(item as Record<string, unknown>))
       : [],
   };
+}
+
+export async function getRecommendation(symbol: string): Promise<AnalystRecommendationResponse> {
+  const data = await fetchJson<Record<string, unknown>>(
+    `/tickers/${symbol}/recommendation`,
+  );
+  return toRecommendation(data);
 }
 
 export async function refreshBackend(days = 30): Promise<void> {

@@ -12,9 +12,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { getTicker } from "../../src/lib/api";
+import { getRecommendation, getTicker } from "../../src/lib/api";
 import { formatPercent, formatSignedPoints } from "../../src/lib/format";
-import { TickerDetail } from "../../src/types";
+import { AnalystRecommendationResponse, TickerDetail } from "../../src/types";
 
 const TIME_RANGES = ["1D", "1W", "1M", "1Y", "ALL"] as const;
 
@@ -25,6 +25,7 @@ export default function TickerScreen() {
   const [selectedRange, setSelectedRange] = useState<(typeof TIME_RANGES)[number]>("1M");
   const [detail, setDetail] = useState<TickerDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [recommendation, setRecommendation] = useState<AnalystRecommendationResponse | null>(null);
   const theme = isDark ? darkTheme : lightTheme;
 
   const symbol = parseStringParam(params.symbol) ?? "—";
@@ -42,6 +43,7 @@ export default function TickerScreen() {
     }
     let isMounted = true;
     setDetailError(null);
+    setRecommendation(null);
     getTicker(symbol)
       .then((data) => {
         if (isMounted) {
@@ -54,6 +56,17 @@ export default function TickerScreen() {
         }
         const message = err instanceof Error ? err.message : "Failed to load ticker";
         setDetailError(message);
+      });
+    getRecommendation(symbol)
+      .then((data) => {
+        if (isMounted) {
+          setRecommendation(data);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setRecommendation(null);
+        }
       });
 
     return () => {
@@ -75,6 +88,10 @@ export default function TickerScreen() {
 
   const companyName = detail?.name?.trim();
   const headerName = companyName ? companyName : "Name not available yet";
+  const summaryLabel = recommendation?.summary ?? "Not available";
+  const showBreakdown = Boolean(
+    recommendation && recommendation.summary !== "Not available",
+  );
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -160,6 +177,58 @@ export default function TickerScreen() {
           />
           <MetricRow label="Current Dip" value={dipLabel} theme={theme} />
           <MetricRow label="As of" value={asOfLabel} theme={theme} />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Analyst Recommendation
+          </Text>
+          <View
+            style={[
+              styles.summaryPill,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
+            <Text style={[styles.summaryText, { color: theme.text }]}>
+              {summaryLabel}
+            </Text>
+          </View>
+          {showBreakdown ? (
+            <View style={styles.breakdownBlock}>
+              <MetricRow
+                label="Strong Buy"
+                value={`${recommendation?.strong_buy ?? 0}`}
+                theme={theme}
+              />
+              <MetricRow
+                label="Buy"
+                value={`${recommendation?.buy ?? 0}`}
+                theme={theme}
+              />
+              <MetricRow
+                label="Hold"
+                value={`${recommendation?.hold ?? 0}`}
+                theme={theme}
+              />
+              <MetricRow
+                label="Sell"
+                value={`${recommendation?.sell ?? 0}`}
+                theme={theme}
+              />
+              <MetricRow
+                label="Strong Sell"
+                value={`${recommendation?.strong_sell ?? 0}`}
+                theme={theme}
+              />
+            </View>
+          ) : (
+            <Text style={[styles.sectionHint, { color: theme.mutedLight }]}>
+              Not available yet
+            </Text>
+          )}
+          <Text style={[styles.sectionHint, { color: theme.mutedLight }]}>
+            Based on recent analyst ratings (if available).
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -318,6 +387,22 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 24,
+  },
+  summaryPill: {
+    alignSelf: "flex-start",
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  summaryText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  breakdownBlock: {
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,

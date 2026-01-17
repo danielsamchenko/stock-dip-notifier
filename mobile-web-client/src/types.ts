@@ -49,3 +49,14 @@ export type TickerDetail = {
   recent_signals: DipRow[];
   recent_alerts: AlertRow[];
 };
+
+export type AnalystRecommendationResponse = {
+  symbol: string;
+  summary: string;
+  strong_buy: number;
+  buy: number;
+  hold: number;
+  sell: number;
+  strong_sell: number;
+  source: string | null;
+};
