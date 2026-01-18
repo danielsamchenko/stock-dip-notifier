@@ -79,6 +79,9 @@ market/sector-relative returns (percentage points vs SPY and a sector ETF).
 `/tickers/{symbol}/recommendation` returns analyst recommendation counts from
 yfinance, plus a simple summary label (MVP heuristic).
 
+`/tickers/{symbol}` also includes an optional `volume_spike` field when enough
+volume history is available (ratio vs 20-day average).
+
 ## CORS for Expo Web
 
 Expo Web runs in a browser, so the API must allow CORS. By default the API allows

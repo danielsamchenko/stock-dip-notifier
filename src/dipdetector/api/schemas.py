@@ -63,6 +63,13 @@ class AnalystRecommendationOut(BaseModel):
     source: str
 
 
+class VolumeSpikeOut(BaseModel):
+    asof_date: date
+    volume: int
+    avg_volume_20d: float
+    spike_ratio: float
+
+
 class PriceOut(BaseModel):
     symbol: str
     date: date
@@ -88,6 +95,7 @@ class TickerDetailOut(BaseModel):
     latest_price: PriceOut | None
     recent_signals: list[SignalOut]
     recent_alerts: list[AlertOut]
+    volume_spike: VolumeSpikeOut | None
 
 
 def to_float(value: Any) -> float:

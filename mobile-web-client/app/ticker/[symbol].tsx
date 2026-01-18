@@ -44,7 +44,7 @@ export default function TickerScreen() {
     let isMounted = true;
     setDetailError(null);
     setRecommendation(null);
-    getTicker(symbol)
+    getTicker(symbol, asOfDate ?? undefined)
       .then((data) => {
         if (isMounted) {
           setDetail(data);
@@ -72,7 +72,7 @@ export default function TickerScreen() {
     return () => {
       isMounted = false;
     };
-  }, [symbol]);
+  }, [symbol, asOfDate]);
 
   const dipLabel = useMemo(() => {
     if (dip === null) {
@@ -85,6 +85,7 @@ export default function TickerScreen() {
   const relSpyLabel = relativeSpy === null ? "Not available yet" : formatSignedPoints(relativeSpy);
   const relSectorLabel =
     relativeSector === null ? "Not available yet" : formatSignedPoints(relativeSector);
+  const volumeSpikeLabel = formatVolumeSpike(detail?.volume_spike ?? null);
 
   const companyName = detail?.name?.trim();
   const headerName = companyName ? companyName : "Name not available yet";
@@ -175,6 +176,10 @@ export default function TickerScreen() {
             value={relSectorLabel}
             theme={theme}
           />
+          <MetricRow label="Volume spike" value={volumeSpikeLabel} theme={theme} />
+          <Text style={[styles.sectionHint, { color: theme.mutedLight }]}>
+            Today's volume vs 20-day average
+          </Text>
           <MetricRow label="Current Dip" value={dipLabel} theme={theme} />
           <MetricRow label="As of" value={asOfLabel} theme={theme} />
         </View>
@@ -273,6 +278,15 @@ function formatWindow(value: number | null): string {
     return "";
   }
   return `(${value}d)`;
+}
+
+function formatVolumeSpike(
+  spike: { spike_ratio: number } | null,
+): string {
+  if (!spike || !Number.isFinite(spike.spike_ratio)) {
+    return "Not available yet";
+  }
+  return `${spike.spike_ratio.toFixed(1)}× (20d avg)`;
 }
 
 type Theme = {

@@ -6,6 +6,7 @@ import {
   DipRow,
   PriceRow,
   TickerDetail,
+  VolumeSpike,
 } from "../types";
 
 const REQUEST_TIMEOUT_MS = 8000;
@@ -105,6 +106,24 @@ function toPriceRow(item: Record<string, unknown>): PriceRow {
   };
 }
 
+function toVolumeSpike(item: Record<string, unknown>): VolumeSpike | null {
+  const spikeRatio = parseNumber(item.spike_ratio);
+  const avgVolume = parseNumber(item.avg_volume_20d);
+  const volume = parseNumber(item.volume);
+  const asofDate = item.asof_date ? String(item.asof_date) : null;
+
+  if (!asofDate || spikeRatio === null || avgVolume === null || volume === null) {
+    return null;
+  }
+
+  return {
+    asof_date: asofDate,
+    volume: Math.round(volume),
+    avg_volume_20d: avgVolume,
+    spike_ratio: spikeRatio,
+  };
+}
+
 function toRecommendation(item: Record<string, unknown>): AnalystRecommendationResponse {
   return {
     symbol: String(item.symbol ?? ""),
@@ -137,8 +156,9 @@ export async function getCurrentDips(limit: number): Promise<CurrentDipRow[]> {
   return items.map((item) => toCurrentDipRow(item as Record<string, unknown>));
 }
 
-export async function getTicker(symbol: string): Promise<TickerDetail> {
-  const data = await fetchJson<Record<string, unknown>>(`/tickers/${symbol}`);
+export async function getTicker(symbol: string, asof?: string): Promise<TickerDetail> {
+  const query = asof ? `?asof=${encodeURIComponent(asof)}` : "";
+  const data = await fetchJson<Record<string, unknown>>(`/tickers/${symbol}${query}`);
 
   return {
     symbol: String(data.symbol ?? symbol),
@@ -154,6 +174,10 @@ export async function getTicker(symbol: string): Promise<TickerDetail> {
     recent_alerts: Array.isArray(data.recent_alerts)
       ? data.recent_alerts.map((item) => toAlertRow(item as Record<string, unknown>))
       : [],
+    volume_spike:
+      data.volume_spike && typeof data.volume_spike === "object"
+        ? toVolumeSpike(data.volume_spike as Record<string, unknown>)
+        : null,
   };
 }
 

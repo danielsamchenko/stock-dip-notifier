@@ -41,6 +41,13 @@ export type PriceRow = {
   source: string | null;
 };
 
+export type VolumeSpike = {
+  asof_date: string;
+  volume: number;
+  avg_volume_20d: number;
+  spike_ratio: number;
+};
+
 export type TickerDetail = {
   symbol: string;
   name: string | null;
@@ -48,6 +55,7 @@ export type TickerDetail = {
   latest_price: PriceRow | null;
   recent_signals: DipRow[];
   recent_alerts: AlertRow[];
+  volume_spike: VolumeSpike | null;
 };
 
 export type AnalystRecommendationResponse = {
