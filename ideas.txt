@@ -1,15 +1,31 @@
-- logos for each stock?
-- add more indicators (rsi, macd, bollinger bands)
-- red/green indicator
-- web icon, app icon
+Non technical steps:
+- Define app mission
+    - A platform for beginner/intermediate stock investors and enthusiasts to track and receive 
+    notifications for stock dips, with the ability to see recovery scores, potential recovery time, 
+    and AI overview of each dip.
+- How to differentiate from competitorr (yahoo finance, robinhood, etc)
+- List core features
+    - Do we want user portfolios?
+    - do we want big jumps too?
+- Draft UI mockups
+- Confirm tech stack
+- Decide on LLM integration
+- Find existing recovery score equation
 
-- define dip one day /= dip multi day
-- how far back am I getting data from
-- auto
-- digest buy sell hold
-- analyze news 
+Core features:
+- Notifcations
+- Stock prediction of recovery time
+- User profiles? 
+- Recovery score calculation (how to split math and qualitative data with AI?)
+- AI overview of stock dip
 
+Feedback
+- Revise with carter
+- Get user feedback
+- Get CEO/founder feedback
 
+Production ready steps:
+- Account (gmail/apple integration?)
 — Local Kubernetes (kind)
 — AWS Infrastructure (Terraform: VPC/EKS/ECR/optional RDS)
 — CI (GitHub Actions: test/build/push)
