@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -12,9 +12,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { getRecommendation, getTicker } from "../../src/lib/api";
-import { formatPercent, formatSignedPoints } from "../../src/lib/format";
-import { AnalystRecommendationResponse, TickerDetail } from "../../src/types";
+import { getTicker } from "../../src/lib/api";
+import { TickerDetail } from "../../src/types";
 
 const TIME_RANGES = ["1D", "1W", "1M", "1Y", "ALL"] as const;
 
@@ -25,17 +24,9 @@ export default function TickerScreen() {
   const [selectedRange, setSelectedRange] = useState<(typeof TIME_RANGES)[number]>("1M");
   const [detail, setDetail] = useState<TickerDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [recommendation, setRecommendation] = useState<AnalystRecommendationResponse | null>(null);
   const theme = isDark ? darkTheme : lightTheme;
 
   const symbol = parseStringParam(params.symbol) ?? "—";
-  const dip = parseNumberParam(params.dip);
-  const windowDays = parseNumberParam(params.window_days);
-  const asOfDate = parseStringParam(params.date);
-  const marketSymbol = parseStringParam(params.market_symbol) ?? "SPY";
-  const sectorSymbol = parseStringParam(params.sector_symbol);
-  const relativeSpy = parseNumberParam(params.relative_to_spy_pp);
-  const relativeSector = parseNumberParam(params.relative_to_sector_pp);
 
   useEffect(() => {
     if (!symbol || symbol === "—") {
@@ -43,8 +34,7 @@ export default function TickerScreen() {
     }
     let isMounted = true;
     setDetailError(null);
-    setRecommendation(null);
-    getTicker(symbol, asOfDate ?? undefined)
+    getTicker(symbol)
       .then((data) => {
         if (isMounted) {
           setDetail(data);
@@ -57,42 +47,14 @@ export default function TickerScreen() {
         const message = err instanceof Error ? err.message : "Failed to load ticker";
         setDetailError(message);
       });
-    getRecommendation(symbol)
-      .then((data) => {
-        if (isMounted) {
-          setRecommendation(data);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setRecommendation(null);
-        }
-      });
 
     return () => {
       isMounted = false;
     };
-  }, [symbol, asOfDate]);
-
-  const dipLabel = useMemo(() => {
-    if (dip === null) {
-      return "Not available yet";
-    }
-    return `${formatPercent(dip)} ${formatWindow(windowDays)}`;
-  }, [dip, windowDays]);
-
-  const asOfLabel = asOfDate ? asOfDate : "Not available yet";
-  const relSpyLabel = relativeSpy === null ? "Not available yet" : formatSignedPoints(relativeSpy);
-  const relSectorLabel =
-    relativeSector === null ? "Not available yet" : formatSignedPoints(relativeSector);
-  const volumeSpikeLabel = formatVolumeSpike(detail?.volume_spike ?? null);
+  }, [symbol]);
 
   const companyName = detail?.name?.trim();
   const headerName = companyName ? companyName : "Name not available yet";
-  const summaryLabel = recommendation?.summary ?? "Not available";
-  const showBreakdown = Boolean(
-    recommendation && recommendation.summary !== "Not available",
-  );
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -159,101 +121,8 @@ export default function TickerScreen() {
             (Will be populated after I upgrade data provider)
           </Text>
         </View>
-
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Stock Dip Analysis</Text>
-          <Text style={[styles.sectionHint, { color: theme.mutedLight }]}>
-            pp = percentage points vs benchmark
-          </Text>
-
-          <MetricRow
-            label={`Relative vs ${marketSymbol}`}
-            value={relSpyLabel}
-            theme={theme}
-          />
-          <MetricRow
-            label={sectorSymbol ? `Relative vs Sector (${sectorSymbol})` : "Relative vs Sector"}
-            value={relSectorLabel}
-            theme={theme}
-          />
-          <MetricRow label="Volume spike" value={volumeSpikeLabel} theme={theme} />
-          <Text style={[styles.sectionHint, { color: theme.mutedLight }]}>
-            Today's volume vs 20-day average
-          </Text>
-          <MetricRow label="Current Dip" value={dipLabel} theme={theme} />
-          <MetricRow label="As of" value={asOfLabel} theme={theme} />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Analyst Recommendation
-          </Text>
-          <View
-            style={[
-              styles.summaryPill,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.summaryText, { color: theme.text }]}>
-              {summaryLabel}
-            </Text>
-          </View>
-          {showBreakdown ? (
-            <View style={styles.breakdownBlock}>
-              <MetricRow
-                label="Strong Buy"
-                value={`${recommendation?.strong_buy ?? 0}`}
-                theme={theme}
-              />
-              <MetricRow
-                label="Buy"
-                value={`${recommendation?.buy ?? 0}`}
-                theme={theme}
-              />
-              <MetricRow
-                label="Hold"
-                value={`${recommendation?.hold ?? 0}`}
-                theme={theme}
-              />
-              <MetricRow
-                label="Sell"
-                value={`${recommendation?.sell ?? 0}`}
-                theme={theme}
-              />
-              <MetricRow
-                label="Strong Sell"
-                value={`${recommendation?.strong_sell ?? 0}`}
-                theme={theme}
-              />
-            </View>
-          ) : (
-            <Text style={[styles.sectionHint, { color: theme.mutedLight }]}>
-              Not available yet
-            </Text>
-          )}
-          <Text style={[styles.sectionHint, { color: theme.mutedLight }]}>
-            Based on recent analyst ratings (if available).
-          </Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function MetricRow({
-  label,
-  value,
-  theme,
-}: {
-  label: string;
-  value: string;
-  theme: Theme;
-}) {
-  return (
-    <View style={[styles.metricRow, { borderBottomColor: theme.border }]}>
-      <Text style={[styles.metricLabel, { color: theme.muted }]}>{label}</Text>
-      <Text style={[styles.metricValue, { color: theme.text }]}>{value}</Text>
-    </View>
   );
 }
 
@@ -262,31 +131,6 @@ function parseStringParam(value: string | string[] | undefined): string | null {
     return value[0] ?? null;
   }
   return value ?? null;
-}
-
-function parseNumberParam(value: string | string[] | undefined): number | null {
-  const text = Array.isArray(value) ? value[0] : value;
-  if (!text) {
-    return null;
-  }
-  const parsed = Number(text);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function formatWindow(value: number | null): string {
-  if (!value) {
-    return "";
-  }
-  return `(${value}d)`;
-}
-
-function formatVolumeSpike(
-  spike: { spike_ratio: number } | null,
-): string {
-  if (!spike || !Number.isFinite(spike.spike_ratio)) {
-    return "Not available yet";
-  }
-  return `${spike.spike_ratio.toFixed(1)}× (20d avg)`;
 }
 
 type Theme = {
@@ -398,47 +242,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 6,
     textAlign: "center",
-  },
-  section: {
-    marginBottom: 24,
-  },
-  summaryPill: {
-    alignSelf: "flex-start",
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginTop: 10,
-    marginBottom: 12,
-  },
-  summaryText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  breakdownBlock: {
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  sectionHint: {
-    fontSize: 11,
-    marginBottom: 12,
-  },
-  metricRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  metricLabel: {
-    fontSize: 13,
-  },
-  metricValue: {
-    fontSize: 14,
-    fontWeight: "600",
   },
 });

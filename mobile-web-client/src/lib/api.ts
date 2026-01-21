@@ -1,13 +1,5 @@
 import { API_BASE_URL } from "./config";
-import {
-  AlertRow,
-  AnalystRecommendationResponse,
-  CurrentDipRow,
-  DipRow,
-  PriceRow,
-  TickerDetail,
-  VolumeSpike,
-} from "../types";
+import { AlertRow, CurrentDipRow, DipRow, PriceRow, TickerDetail } from "../types";
 
 const REQUEST_TIMEOUT_MS = 8000;
 const REFRESH_TIMEOUT_MS = 120000;
@@ -15,14 +7,6 @@ const REFRESH_TIMEOUT_MS = 120000;
 function parseNumber(value: unknown): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function parseString(value: unknown): string | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  const text = String(value).trim();
-  return text.length ? text : null;
 }
 
 async function fetchJson<T>(
@@ -71,13 +55,6 @@ function toCurrentDipRow(item: Record<string, unknown>): CurrentDipRow {
     date: String(item.date ?? ""),
     dip: parseNumber(item.dip),
     window_days: windowValue === null ? null : Math.round(windowValue),
-    market_symbol: parseString(item.market_symbol),
-    sector_symbol: parseString(item.sector_symbol),
-    ticker_return_pct: parseNumber(item.ticker_return_pct),
-    spy_return_pct: parseNumber(item.spy_return_pct),
-    sector_return_pct: parseNumber(item.sector_return_pct),
-    relative_to_spy_pp: parseNumber(item.relative_to_spy_pp),
-    relative_to_sector_pp: parseNumber(item.relative_to_sector_pp),
   };
 }
 
@@ -106,37 +83,6 @@ function toPriceRow(item: Record<string, unknown>): PriceRow {
   };
 }
 
-function toVolumeSpike(item: Record<string, unknown>): VolumeSpike | null {
-  const spikeRatio = parseNumber(item.spike_ratio);
-  const avgVolume = parseNumber(item.avg_volume_20d);
-  const volume = parseNumber(item.volume);
-  const asofDate = item.asof_date ? String(item.asof_date) : null;
-
-  if (!asofDate || spikeRatio === null || avgVolume === null || volume === null) {
-    return null;
-  }
-
-  return {
-    asof_date: asofDate,
-    volume: Math.round(volume),
-    avg_volume_20d: avgVolume,
-    spike_ratio: spikeRatio,
-  };
-}
-
-function toRecommendation(item: Record<string, unknown>): AnalystRecommendationResponse {
-  return {
-    symbol: String(item.symbol ?? ""),
-    summary: String(item.summary ?? "Not available"),
-    strong_buy: parseNumber(item.strong_buy) ?? 0,
-    buy: parseNumber(item.buy) ?? 0,
-    hold: parseNumber(item.hold) ?? 0,
-    sell: parseNumber(item.sell) ?? 0,
-    strong_sell: parseNumber(item.strong_sell) ?? 0,
-    source: parseString(item.source),
-  };
-}
-
 export async function getDips(rule: string, limit: number): Promise<DipRow[]> {
   const query = `rule=${encodeURIComponent(rule)}&limit=${limit}`;
   const data = await fetchJson<unknown[]>(`/dips?${query}`);
@@ -156,9 +102,8 @@ export async function getCurrentDips(limit: number): Promise<CurrentDipRow[]> {
   return items.map((item) => toCurrentDipRow(item as Record<string, unknown>));
 }
 
-export async function getTicker(symbol: string, asof?: string): Promise<TickerDetail> {
-  const query = asof ? `?asof=${encodeURIComponent(asof)}` : "";
-  const data = await fetchJson<Record<string, unknown>>(`/tickers/${symbol}${query}`);
+export async function getTicker(symbol: string): Promise<TickerDetail> {
+  const data = await fetchJson<Record<string, unknown>>(`/tickers/${symbol}`);
 
   return {
     symbol: String(data.symbol ?? symbol),
@@ -174,18 +119,7 @@ export async function getTicker(symbol: string, asof?: string): Promise<TickerDe
     recent_alerts: Array.isArray(data.recent_alerts)
       ? data.recent_alerts.map((item) => toAlertRow(item as Record<string, unknown>))
       : [],
-    volume_spike:
-      data.volume_spike && typeof data.volume_spike === "object"
-        ? toVolumeSpike(data.volume_spike as Record<string, unknown>)
-        : null,
   };
-}
-
-export async function getRecommendation(symbol: string): Promise<AnalystRecommendationResponse> {
-  const data = await fetchJson<Record<string, unknown>>(
-    `/tickers/${symbol}/recommendation`,
-  );
-  return toRecommendation(data);
 }
 
 export async function refreshBackend(days = 30): Promise<void> {

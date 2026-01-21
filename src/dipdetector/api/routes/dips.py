@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -13,8 +13,6 @@ from dipdetector.api.deps import get_db_session
 from dipdetector.api.schemas import CurrentDipItem, CurrentDipsResponse, SignalOut, to_float
 from dipdetector.analyze.current_dips import compute_best_recent_drawdown
 from dipdetector.db.models import DailyPrice, Signal, Ticker
-from dipdetector.market.returns import compute_return_pct, get_closes_for_symbol
-from dipdetector.market.sector_map import MARKET_BENCHMARK, get_sector_etf
 
 router = APIRouter(tags=["dips"])
 DEFAULT_WINDOWS = [1, 2, 3, 5, 7, 10, 14]
@@ -54,25 +52,6 @@ def _parse_windows(value: str | None) -> list[int]:
             seen.add(window)
 
     return windows or DEFAULT_WINDOWS.copy()
-
-
-def _window_start_date(
-    prices: list[tuple[date, float]],
-    asof_date: date,
-    window_days: int,
-) -> date | None:
-    filtered = [(day, close) for day, close in prices if day <= asof_date]
-    if not filtered:
-        return None
-
-    if window_days == 1:
-        if len(filtered) < 2:
-            return None
-        return filtered[-2][0]
-
-    if len(filtered) < window_days:
-        return None
-    return filtered[-window_days][0]
 
 
 @router.get("/dips", response_model=list[SignalOut])
@@ -150,17 +129,9 @@ def list_current_dips(
     if 1 in window_list:
         lookback = max(lookback, 2)
 
-    start_floor = asof_date - timedelta(days=lookback * 2)
     tickers = (
         session.execute(select(Ticker).where(Ticker.active.is_(True))).scalars().all()
     )
-    sector_symbols = {get_sector_etf(ticker.symbol) for ticker in tickers}
-    benchmark_symbols = {MARKET_BENCHMARK}
-    preload_symbols = {symbol for symbol in sector_symbols if symbol} | benchmark_symbols
-    closes_cache: dict[str, list[tuple[date, float]]] = {}
-    for symbol in preload_symbols:
-        closes_cache[symbol] = get_closes_for_symbol(session, symbol, start_floor, asof_date)
-
     items: list[CurrentDipItem] = []
     for ticker in tickers:
         rows = session.execute(
@@ -182,50 +153,12 @@ def list_current_dips(
 
         dip_value, window_days = result
         if dip_value <= min_dip:
-            window_start = _window_start_date(prices, asof_date, window_days)
-            ticker_return = (
-                compute_return_pct(prices, window_start, asof_date)
-                if window_start
-                else None
-            )
-
-            spy_closes = closes_cache.get(MARKET_BENCHMARK, [])
-            spy_return = (
-                compute_return_pct(spy_closes, window_start, asof_date)
-                if window_start
-                else None
-            )
-
-            sector_symbol = get_sector_etf(ticker.symbol)
-            sector_return = None
-            if sector_symbol and window_start:
-                sector_closes = closes_cache.get(sector_symbol, [])
-                if sector_closes:
-                    sector_return = compute_return_pct(sector_closes, window_start, asof_date)
-
-            relative_to_spy = (
-                ticker_return - spy_return
-                if ticker_return is not None and spy_return is not None
-                else None
-            )
-            relative_to_sector = (
-                ticker_return - sector_return
-                if ticker_return is not None and sector_return is not None
-                else None
-            )
             items.append(
                 CurrentDipItem(
                     symbol=ticker.symbol,
                     date=asof_date,
                     dip=float(dip_value),
                     window_days=window_days,
-                    market_symbol=MARKET_BENCHMARK,
-                    sector_symbol=sector_symbol,
-                    ticker_return_pct=ticker_return,
-                    spy_return_pct=spy_return,
-                    sector_return_pct=sector_return,
-                    relative_to_spy_pp=relative_to_spy,
-                    relative_to_sector_pp=relative_to_sector,
                 )
             )
 

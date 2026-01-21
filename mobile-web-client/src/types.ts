@@ -11,13 +11,6 @@ export type CurrentDipRow = {
   date: string;
   dip: number | null;
   window_days: number | null;
-  market_symbol: string | null;
-  sector_symbol: string | null;
-  ticker_return_pct: number | null;
-  spy_return_pct: number | null;
-  sector_return_pct: number | null;
-  relative_to_spy_pp: number | null;
-  relative_to_sector_pp: number | null;
 };
 
 export type AlertRow = {
@@ -41,13 +34,6 @@ export type PriceRow = {
   source: string | null;
 };
 
-export type VolumeSpike = {
-  asof_date: string;
-  volume: number;
-  avg_volume_20d: number;
-  spike_ratio: number;
-};
-
 export type TickerDetail = {
   symbol: string;
   name: string | null;
@@ -55,16 +41,4 @@ export type TickerDetail = {
   latest_price: PriceRow | null;
   recent_signals: DipRow[];
   recent_alerts: AlertRow[];
-  volume_spike: VolumeSpike | null;
-};
-
-export type AnalystRecommendationResponse = {
-  symbol: string;
-  summary: string;
-  strong_buy: number;
-  buy: number;
-  hold: number;
-  sell: number;
-  strong_sell: number;
-  source: string | null;
 };

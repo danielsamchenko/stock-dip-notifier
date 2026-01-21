@@ -188,13 +188,6 @@ export default function DipsScreen() {
                     dip: item.dip?.toString() ?? "",
                     window_days: item.window_days?.toString() ?? "",
                     date: item.date ?? "",
-                    market_symbol: item.market_symbol ?? "",
-                    sector_symbol: item.sector_symbol ?? "",
-                    ticker_return_pct: item.ticker_return_pct?.toString() ?? "",
-                    spy_return_pct: item.spy_return_pct?.toString() ?? "",
-                    sector_return_pct: item.sector_return_pct?.toString() ?? "",
-                    relative_to_spy_pp: item.relative_to_spy_pp?.toString() ?? "",
-                    relative_to_sector_pp: item.relative_to_sector_pp?.toString() ?? "",
                   },
                 })
               }

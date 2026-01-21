@@ -37,37 +37,12 @@ class CurrentDipItem(BaseModel):
     date: date
     dip: float
     window_days: int
-    market_symbol: str
-    sector_symbol: str | None
-    ticker_return_pct: float | None
-    spy_return_pct: float | None
-    sector_return_pct: float | None
-    relative_to_spy_pp: float | None
-    relative_to_sector_pp: float | None
 
 
 class CurrentDipsResponse(BaseModel):
     asof: date | None
     windows: list[int]
     items: list[CurrentDipItem]
-
-
-class AnalystRecommendationOut(BaseModel):
-    symbol: str
-    summary: str
-    strong_buy: int
-    buy: int
-    hold: int
-    sell: int
-    strong_sell: int
-    source: str
-
-
-class VolumeSpikeOut(BaseModel):
-    asof_date: date
-    volume: int
-    avg_volume_20d: float
-    spike_ratio: float
 
 
 class PriceOut(BaseModel):
@@ -95,7 +70,6 @@ class TickerDetailOut(BaseModel):
     latest_price: PriceOut | None
     recent_signals: list[SignalOut]
     recent_alerts: list[AlertOut]
-    volume_spike: VolumeSpikeOut | None
 
 
 def to_float(value: Any) -> float:

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -11,7 +9,6 @@ from sqlalchemy.orm import Session
 from dipdetector.api.deps import get_db_session
 from dipdetector.api.schemas import (
     AlertOut,
-    AnalystRecommendationOut,
     PriceOut,
     SignalOut,
     TickerDetailOut,
@@ -20,15 +17,8 @@ from dipdetector.api.schemas import (
     to_float,
 )
 from dipdetector.db.models import Alert, DailyPrice, Signal, Ticker
-from dipdetector.market.volume import compute_volume_spike, get_volume_series
-from dipdetector.providers.analyst_base import AnalystRecommendation
-from dipdetector.providers.yfinance_analyst_provider import YFinanceAnalystProvider
-from dipdetector.utils.cache import TTLCache
 
 router = APIRouter(tags=["tickers"])
-
-_recommendation_cache: TTLCache[AnalystRecommendationOut] = TTLCache()
-_recommendation_provider = YFinanceAnalystProvider()
 
 
 def _clamp_limit(limit: int, max_limit: int) -> int:
@@ -39,39 +29,6 @@ def _clamp_limit(limit: int, max_limit: int) -> int:
 
 def _normalize_symbol(symbol: str) -> str:
     return symbol.strip().upper()
-
-
-def _empty_recommendation(symbol: str) -> AnalystRecommendationOut:
-    return AnalystRecommendationOut(
-        symbol=symbol,
-        summary="Not available",
-        strong_buy=0,
-        buy=0,
-        hold=0,
-        sell=0,
-        strong_sell=0,
-        source="yfinance",
-    )
-
-
-def _to_recommendation_out(
-    symbol: str,
-    recommendation: AnalystRecommendation | None,
-) -> AnalystRecommendationOut:
-    if recommendation is None:
-        return _empty_recommendation(symbol)
-
-    return AnalystRecommendationOut(
-        symbol=symbol,
-        summary=recommendation.summary,
-        strong_buy=recommendation.strong_buy,
-        buy=recommendation.buy,
-        hold=recommendation.hold,
-        sell=recommendation.sell,
-        strong_sell=recommendation.strong_sell,
-        source=recommendation.source,
-    )
-
 
 @router.get("/tickers", response_model=list[TickerSummaryOut])
 def list_tickers(
@@ -116,7 +73,6 @@ def list_tickers(
 @router.get("/tickers/{symbol}", response_model=TickerDetailOut)
 def get_ticker(
     symbol: str,
-    asof: date | None = Query(default=None),
     session: Session = Depends(get_db_session),
 ) -> TickerDetailOut:
     normalized = _normalize_symbol(symbol)
@@ -146,17 +102,6 @@ def get_ticker(
             volume=latest_price_row.volume,
             source=latest_price_row.source,
         )
-
-    volume_spike = None
-    if latest_price_row:
-        asof_date = asof or latest_price_row.date
-        volume_series = get_volume_series(
-            session,
-            ticker.symbol,
-            asof_date,
-            lookback_days=21,
-        )
-        volume_spike = compute_volume_spike(volume_series, asof_date, avg_window=20)
 
     signal_rows = session.execute(
         select(Signal)
@@ -203,24 +148,4 @@ def get_ticker(
         latest_price=latest_price,
         recent_signals=recent_signals,
         recent_alerts=recent_alerts,
-        volume_spike=volume_spike,
     )
-
-
-@router.get("/tickers/{symbol}/recommendation", response_model=AnalystRecommendationOut)
-def get_recommendation(symbol: str) -> AnalystRecommendationOut:
-    normalized = _normalize_symbol(symbol)
-
-    cached = _recommendation_cache.get(normalized)
-    if cached is not None:
-        return cached
-
-    recommendation: AnalystRecommendation | None
-    try:
-        recommendation = _recommendation_provider.get_recommendation(normalized)
-    except Exception:
-        recommendation = None
-
-    response = _to_recommendation_out(normalized, recommendation)
-    _recommendation_cache.set(normalized, response)
-    return response
