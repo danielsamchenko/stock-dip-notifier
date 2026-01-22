@@ -42,3 +42,18 @@ export type TickerDetail = {
   recent_signals: DipRow[];
   recent_alerts: AlertRow[];
 };
+
+export type IntradayBar = {
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+};
+
+export type IntradayChartResponse = {
+  symbol: string;
+  timespan: string;
+  bars: IntradayBar[];
+};

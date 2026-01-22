@@ -1,5 +1,13 @@
 import { API_BASE_URL } from "./config";
-import { AlertRow, CurrentDipRow, DipRow, PriceRow, TickerDetail } from "../types";
+import {
+  AlertRow,
+  CurrentDipRow,
+  DipRow,
+  IntradayBar,
+  IntradayChartResponse,
+  PriceRow,
+  TickerDetail,
+} from "../types";
 
 const REQUEST_TIMEOUT_MS = 8000;
 const REFRESH_TIMEOUT_MS = 120000;
@@ -83,6 +91,22 @@ function toPriceRow(item: Record<string, unknown>): PriceRow {
   };
 }
 
+function toIntradayBar(item: Record<string, unknown>): IntradayBar {
+  return {
+    t: Math.round(parseNumber(item.t) ?? 0),
+    o: parseNumber(item.o) ?? 0,
+    h: parseNumber(item.h) ?? 0,
+    l: parseNumber(item.l) ?? 0,
+    c: parseNumber(item.c) ?? 0,
+    v: parseNumber(item.v) ?? 0,
+  };
+}
+
+export function buildWsUrl(path: string): string {
+  const base = API_BASE_URL.replace(/^http/, "ws");
+  return `${base}${path}`;
+}
+
 export async function getDips(rule: string, limit: number): Promise<DipRow[]> {
   const query = `rule=${encodeURIComponent(rule)}&limit=${limit}`;
   const data = await fetchJson<unknown[]>(`/dips?${query}`);
@@ -119,6 +143,21 @@ export async function getTicker(symbol: string): Promise<TickerDetail> {
     recent_alerts: Array.isArray(data.recent_alerts)
       ? data.recent_alerts.map((item) => toAlertRow(item as Record<string, unknown>))
       : [],
+  };
+}
+
+export async function getIntradayChart(
+  symbol: string,
+  lookbackMinutes?: number,
+): Promise<IntradayChartResponse> {
+  const params = lookbackMinutes ? `?lookback_minutes=${lookbackMinutes}` : "";
+  const data = await fetchJson<Record<string, unknown>>(`/chart/intraday/${symbol}${params}`);
+  const bars = Array.isArray(data.bars) ? data.bars : [];
+
+  return {
+    symbol: String(data.symbol ?? symbol),
+    timespan: String(data.timespan ?? "minute"),
+    bars: bars.map((item) => toIntradayBar(item as Record<string, unknown>)),
   };
 }
 

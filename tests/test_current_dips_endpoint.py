@@ -28,7 +28,7 @@ def _seed_prices(
                 low=close,
                 close=close,
                 volume=100,
-                source="yfinance",
+                source="massive",
             )
         )
 

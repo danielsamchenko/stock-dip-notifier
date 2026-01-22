@@ -72,6 +72,21 @@ class TickerDetailOut(BaseModel):
     recent_alerts: list[AlertOut]
 
 
+class IntradayBarOut(BaseModel):
+    t: int
+    o: float
+    h: float
+    l: float
+    c: float
+    v: float
+
+
+class IntradayChartResponse(BaseModel):
+    symbol: str
+    timespan: str
+    bars: list[IntradayBarOut]
+
+
 def to_float(value: Any) -> float:
     if isinstance(value, Decimal):
         return float(value)

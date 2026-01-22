@@ -1,54 +1,82 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
 
-import pandas as pd
-import yfinance as yf
-
-from dipdetector.providers.yfinance_provider import YFinanceProvider
+from dipdetector.providers import massive_provider
+from dipdetector.providers.massive_provider import MassiveProvider
 
 
-def test_yfinance_provider_parses_daily_bars(monkeypatch):
+@dataclass
+class FakeAgg:
+    t: int
+    o: float
+    h: float
+    l: float
+    c: float
+    v: int
+
+
+def _ts(value: str) -> int:
+    return int(datetime.fromisoformat(value).replace(tzinfo=timezone.utc).timestamp() * 1000)
+
+
+def test_massive_provider_maps_daily_bars(monkeypatch):
     start = date(2024, 1, 2)
     end = date(2024, 1, 3)
 
-    columns = pd.MultiIndex.from_tuples(
-        [
-            ("Open", "AAPL"),
-            ("High", "AAPL"),
-            ("Low", "AAPL"),
-            ("Close", "AAPL"),
-            ("Volume", "AAPL"),
-        ],
-        names=["Price", "Ticker"],
-    )
-    frame = pd.DataFrame(
-        [
-            [10.0, 12.0, 9.0, 11.0, 100],
-            [11.0, 13.0, 10.0, 12.0, 200],
-        ],
-        index=pd.to_datetime(["2024-01-02", "2024-01-03"]),
-        columns=columns,
-    )
-
     captured: dict[str, object] = {}
 
-    def fake_download(symbol, start, end, progress, auto_adjust, actions):
-        captured["symbol"] = symbol
-        captured["start"] = start
-        captured["end"] = end
-        return frame
+    class FakeClient:
+        def __init__(self, api_key: str):
+            captured["api_key"] = api_key
 
-    monkeypatch.setattr(yf, "download", fake_download)
+        def list_aggs(self, **kwargs):
+            captured.update(kwargs)
+            return [
+                FakeAgg(_ts("2024-01-02T00:00:00"), 10.0, 12.0, 9.0, 11.0, 100),
+                FakeAgg(_ts("2024-01-03T00:00:00"), 11.0, 13.0, 10.0, 12.0, 200),
+            ]
 
-    provider = YFinanceProvider()
+    monkeypatch.setattr(massive_provider, "RESTClient", FakeClient)
+
+    provider = MassiveProvider("test-key")
     bars = provider.fetch_daily_prices("AAPL", start, end)
 
-    assert captured["symbol"] == "AAPL"
-    assert captured["start"] == start
-    assert captured["end"] == end + timedelta(days=1)
+    assert captured["api_key"] == "test-key"
+    assert captured["ticker"] == "AAPL"
+    assert captured["from_"] == start.isoformat()
+    assert captured["to"] == end.isoformat()
+    assert captured["timespan"] == "day"
+    assert captured["multiplier"] == 1
+    assert captured["adjusted"] is True
     assert len(bars) == 2
     assert bars[0].date == date(2024, 1, 2)
     assert bars[0].open == 10.0
     assert bars[1].date == date(2024, 1, 3)
     assert bars[1].close == 12.0
+
+
+def test_massive_provider_retries(monkeypatch):
+    start = date(2024, 1, 2)
+    end = date(2024, 1, 2)
+    calls = {"count": 0}
+
+    class FakeClient:
+        def __init__(self, api_key: str):
+            pass
+
+        def list_aggs(self, **kwargs):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise RuntimeError("temporary failure")
+            return [FakeAgg(_ts("2024-01-02T00:00:00"), 10.0, 12.0, 9.0, 11.0, 100)]
+
+    monkeypatch.setattr(massive_provider, "RESTClient", FakeClient)
+    monkeypatch.setattr(massive_provider.time, "sleep", lambda _: None)
+
+    provider = MassiveProvider("test-key")
+    bars = provider.fetch_daily_prices("AAPL", start, end)
+
+    assert calls["count"] == 2
+    assert len(bars) == 1

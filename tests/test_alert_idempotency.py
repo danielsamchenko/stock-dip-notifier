@@ -39,12 +39,12 @@ def test_alert_idempotency(tmp_path, monkeypatch):
                     low=close,
                     close=close,
                     volume=100,
-                    source="yfinance",
+                    source="massive",
                 )
             )
 
-    analyze_run.analyze(asof_date, session_factory=db_session.get_session, price_source="yfinance")
-    analyze_run.analyze(asof_date, session_factory=db_session.get_session, price_source="yfinance")
+    analyze_run.analyze(asof_date, session_factory=db_session.get_session)
+    analyze_run.analyze(asof_date, session_factory=db_session.get_session)
 
     with db_session.get_session() as session:
         signals_count = session.execute(select(func.count(models.Signal.id))).scalar_one()

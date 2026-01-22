@@ -7,7 +7,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from dipdetector.api.routes import alerts, dips, health, refresh, tickers
+from dipdetector.api.routes import alerts, chart, dips, health, refresh, tickers
 
 
 def _get_cors_origins() -> list[str]:
@@ -35,5 +35,6 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(alerts.router)
 app.include_router(dips.router)
+app.include_router(chart.router)
 app.include_router(tickers.router)
 app.include_router(refresh.router)

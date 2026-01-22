@@ -16,7 +16,38 @@ def get_database_url() -> str:
 
 
 def get_price_source() -> str:
-    return os.getenv("PRICE_SOURCE", "yfinance").strip().lower()
+    return "massive"
+
+
+def get_massive_api_key() -> str:
+    value = os.getenv("MASSIVE_API_KEY", "").strip()
+    if not value:
+        raise RuntimeError("MASSIVE_API_KEY is required but was not set.")
+    return value
+
+
+def get_massive_rest_base_url() -> str | None:
+    value = os.getenv("MASSIVE_REST_BASE_URL", "").strip()
+    return value or None
+
+
+def get_massive_ws_url() -> str:
+    value = os.getenv("MASSIVE_STOCKS_WS_URL", "").strip()
+    if value:
+        return value
+    return "wss://socket.massive.com/stocks"
+
+
+def get_live_chart_timespan() -> str:
+    return os.getenv("LIVE_CHART_TIMESPAN", "minute").strip()
+
+
+def get_live_chart_multiplier() -> int:
+    return _get_int("LIVE_CHART_MULTIPLIER", 1)
+
+
+def get_live_chart_lookback_minutes() -> int:
+    return _get_int("LIVE_CHART_LOOKBACK_MINUTES", 390)
 
 
 def get_log_level() -> str:

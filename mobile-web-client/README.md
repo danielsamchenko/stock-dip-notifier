@@ -39,4 +39,8 @@ Make sure the backend is running, then verify with:
 ```bash
 curl "http://127.0.0.1:8000/health"
 curl "http://127.0.0.1:8000/dips?rule=drawdown_20d&limit=25"
+curl "http://127.0.0.1:8000/chart/intraday/AAPL"
 ```
+
+The stock detail page uses `/chart/intraday/{symbol}` plus a WebSocket at
+`/ws/chart/intraday/{symbol}` for live updates.

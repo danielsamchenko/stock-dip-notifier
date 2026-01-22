@@ -37,7 +37,7 @@ def test_ingest_upsert_updates_existing_row(tmp_path):
                 low=0.5,
                 close=1.5,
                 volume=100,
-                source="yfinance",
+                source="massive",
             )
         )
 
@@ -58,7 +58,6 @@ def test_ingest_upsert_updates_existing_row(tmp_path):
         provider=provider,
         session_factory=db_session.get_session,
         tickers=["AAPL"],
-        price_source="yfinance",
     )
 
     with db_session.get_session() as session:

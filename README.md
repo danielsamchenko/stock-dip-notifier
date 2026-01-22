@@ -1,6 +1,6 @@
 # Stock Dip Notifier (MVP)
 
-Phase 1 of a Stock Dip Notifier MVP. This project ingests daily OHLCV price bars into Postgres using yfinance. A provider abstraction keeps it easy to swap data sources later.
+Phase 1 of a Stock Dip Notifier MVP. This project ingests daily OHLCV price bars into Postgres using Massive (Polygon) and keeps the API read-only over cached data.
 
 ## Setup
 
@@ -16,11 +16,16 @@ pip install -e ".[dev]"
 
 Required:
 - `DATABASE_URL` (e.g. `postgresql+psycopg2://user:pass@localhost:5432/dips`)
+- `MASSIVE_API_KEY` (required for ingestion)
 
 Optional:
 - `LOG_LEVEL` (default `INFO`)
-- `PRICE_SOURCE` (default `yfinance`)
 - `TICKERS` (comma-separated symbols; overrides the default list in `src/dipdetector/tickers.py`)
+- `MASSIVE_REST_BASE_URL` (default `https://api.massive.com`)
+- `MASSIVE_STOCKS_WS_URL` (default `wss://socket.massive.com/stocks`)
+- `LIVE_CHART_TIMESPAN` (default `minute`)
+- `LIVE_CHART_MULTIPLIER` (default `1`)
+- `LIVE_CHART_LOOKBACK_MINUTES` (default `390`)
 
 Copy the example file and edit:
 
@@ -54,6 +59,8 @@ alembic upgrade head
 python -m dipdetector.ingest.ingest_prices --days 30
 ```
 
+Requires `MASSIVE_API_KEY` to be set.
+
 ## API usage
 
 Run the FastAPI app:
@@ -70,6 +77,13 @@ curl "http://127.0.0.1:8000/dips?rule=drawdown_20d"
 curl "http://127.0.0.1:8000/dips/current"
 curl "http://127.0.0.1:8000/alerts?days=7&symbol=AAPL"
 curl "http://127.0.0.1:8000/tickers/AAPL"
+curl "http://127.0.0.1:8000/chart/intraday/AAPL"
+```
+
+WebSocket for live intraday bars:
+
+```bash
+ws://127.0.0.1:8000/ws/chart/intraday/AAPL
 ```
 
 `/dips/current` returns one row per ticker with the best recent dip window.
@@ -114,5 +128,5 @@ pytest
 
 ## Notes
 
-- yfinance is used for the MVP.
-- The provider interface allows swapping data sources later without changing ingestion logic.
+- Massive (Polygon) is used for ingestion; the API reads from Postgres only.
+- The provider interface keeps ingestion swappable without changing analysis or API logic.
