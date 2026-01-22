@@ -18,7 +18,7 @@ import { buildWsUrl, getDailyChart, getIntradayChart, getTicker } from "../../sr
 import { getLogoUrl } from "../../src/lib/logos";
 import { IntradayBar, TickerDetail } from "../../src/types";
 
-const TIME_RANGES = ["1D", "1W", "1M", "1Y", "ALL"] as const;
+const TIME_RANGES = ["DIP", "1D", "1W", "1M", "1Y", "ALL"] as const;
 const MAX_BARS = 500;
 const DEFAULT_LOOKBACK_MINUTES = 390;
 
@@ -26,7 +26,7 @@ export default function TickerScreen() {
   const params = useLocalSearchParams();
   const systemScheme = useColorScheme();
   const [isDark, setIsDark] = useState<boolean>(systemScheme === "dark");
-  const [selectedRange, setSelectedRange] = useState<(typeof TIME_RANGES)[number]>("1D");
+  const [selectedRange, setSelectedRange] = useState<(typeof TIME_RANGES)[number]>("DIP");
   const [detail, setDetail] = useState<TickerDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [chartBars, setChartBars] = useState<IntradayBar[]>([]);
@@ -36,9 +36,12 @@ export default function TickerScreen() {
   const theme = isDark ? darkTheme : lightTheme;
 
   const symbol = parseStringParam(params.symbol) ?? "—";
+  const dipValue = parseNumber(params.dip);
+  const dipDays = parseNumber(params.window_days);
+  const dipWindowDays = dipDays && dipDays > 0 ? Math.round(dipDays) : null;
   const currency = guessCurrency(symbol);
   const changeLabel = getChangeLabel(selectedRange);
-  const dailyLookbackDays = getDailyLookbackDays(selectedRange);
+  const dailyLookbackDays = getDailyLookbackDays(selectedRange, dipWindowDays);
   const dailyTimespan = getDailyTimespan(selectedRange);
   const chartLabelMode = getChartLabelMode(selectedRange);
 
@@ -149,6 +152,9 @@ export default function TickerScreen() {
       : changeInfo && changeInfo.delta > 0
         ? theme.positive
         : undefined;
+  const dipInfo = formatDipParts(dipValue, dipDays);
+  const dipColor =
+    dipInfo && dipInfo.value >= 0 ? theme.positive : dipInfo ? theme.negative : theme.muted;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -173,7 +179,19 @@ export default function TickerScreen() {
           <View style={styles.headerRow}>
             <Logo symbol={symbol} theme={theme} />
             <View style={styles.headerTextBlock}>
-              <Text style={[styles.tickerText, { color: theme.text }]}>{symbol}</Text>
+              <View style={styles.tickerRow}>
+                <Text style={[styles.tickerText, { color: theme.text }]}>{symbol}</Text>
+                {dipInfo ? (
+                  <View style={styles.dipBadge}>
+                    <Text style={[styles.dipPercent, { color: dipColor }]}>
+                      {dipInfo.percentText}
+                    </Text>
+                    <Text style={[styles.dipDays, { color: theme.muted }]}>
+                      {dipInfo.daysText}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={[styles.companyText, { color: theme.muted }]}>{headerName}</Text>
               {detailError ? (
                 <Text style={[styles.errorText, { color: theme.error }]}>{detailError}</Text>
@@ -264,6 +282,9 @@ function parseStringParam(value: string | string[] | undefined): string | null {
 }
 
 function parseNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -417,9 +438,27 @@ const styles = StyleSheet.create({
   headerTextBlock: {
     flex: 1,
   },
+  tickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   tickerText: {
     fontSize: 32,
     fontWeight: "700",
+  },
+  dipBadge: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+  },
+  dipPercent: {
+    fontSize: 32,
+    fontWeight: "700",
+  },
+  dipDays: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   companyText: {
     fontSize: 14,
@@ -532,8 +571,26 @@ function buildChangeInfo(
   return { text, delta };
 }
 
+function formatDipParts(
+  value: number | null,
+  days: number | null,
+): { percentText: string; daysText: string; value: number } | null {
+  if (value === null || days === null) {
+    return null;
+  }
+  const sign = value >= 0 ? "+" : "";
+  const roundedDays = Math.round(days);
+  return {
+    percentText: `${sign}${value.toFixed(2)}%`,
+    daysText: `(${roundedDays}d)`,
+    value,
+  };
+}
+
 function getChangeLabel(range: (typeof TIME_RANGES)[number]): string {
   switch (range) {
+    case "DIP":
+      return "Dip window";
     case "1D":
       return "Today";
     case "1W":
@@ -547,8 +604,13 @@ function getChangeLabel(range: (typeof TIME_RANGES)[number]): string {
   }
 }
 
-function getDailyLookbackDays(range: (typeof TIME_RANGES)[number]): number {
+function getDailyLookbackDays(
+  range: (typeof TIME_RANGES)[number],
+  dipDays: number | null,
+): number {
   switch (range) {
+    case "DIP":
+      return dipDays ?? 14;
     case "1W":
       return 7;
     case "1M":
@@ -564,6 +626,8 @@ function getDailyLookbackDays(range: (typeof TIME_RANGES)[number]): number {
 
 function getDailyTimespan(range: (typeof TIME_RANGES)[number]): "hour" | "day" {
   switch (range) {
+    case "DIP":
+      return "hour";
     case "1W":
     case "1M":
       return "hour";
@@ -576,6 +640,8 @@ function getChartLabelMode(
   range: (typeof TIME_RANGES)[number],
 ): "time" | "date" | "monthYear" | "none" {
   switch (range) {
+    case "DIP":
+      return "date";
     case "1D":
       return "none";
     case "1W":

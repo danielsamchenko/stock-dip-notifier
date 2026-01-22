@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime, time as time_of_day, timezone, timedelta
+from zoneinfo import ZoneInfo
+
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
 
 from dipdetector import config
@@ -48,6 +51,37 @@ def get_intraday_chart(
     )
 
 
+@router.get("/chart/daily/{symbol}", response_model=IntradayChartResponse)
+def get_daily_chart(
+    symbol: str,
+    lookback_days: int = Query(default=30, ge=1, le=5000),
+    timespan: str = Query(default="day", pattern="^(minute|hour|day)$"),
+    multiplier: int = Query(default=1, ge=1, le=60),
+) -> IntradayChartResponse:
+    provider = _get_provider()
+    end_dt = _get_session_end(datetime.now(timezone.utc))
+    eastern = ZoneInfo("America/New_York")
+    end_local = end_dt.astimezone(eastern)
+    start_date = end_local.date() - timedelta(days=lookback_days)
+    start_dt = datetime.combine(start_date, time_of_day(9, 30), tzinfo=eastern)
+    try:
+        bars = provider.fetch_aggregate_bars(
+            symbol,
+            start_dt=start_dt,
+            end_dt=end_dt,
+            timespan=timespan,
+            multiplier=multiplier,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Failed to fetch daily bars") from exc
+
+    return IntradayChartResponse(
+        symbol=symbol.upper(),
+        timespan=timespan,
+        bars=[IntradayBarOut(**bar) for bar in bars],
+    )
+
+
 @router.websocket("/ws/chart/intraday/{symbol}")
 async def ws_intraday_chart(websocket: WebSocket, symbol: str) -> None:
     await websocket.accept()
@@ -63,3 +97,30 @@ async def ws_intraday_chart(websocket: WebSocket, symbol: str) -> None:
         pass
     finally:
         await fanout.unregister_client(symbol, websocket)
+
+
+def _get_session_end(value: datetime) -> datetime:
+    eastern = ZoneInfo("America/New_York")
+    local = value.astimezone(eastern)
+    session_date = _resolve_session_date(local)
+    session_start = datetime.combine(session_date, time_of_day(9, 30), tzinfo=eastern)
+    session_close = datetime.combine(session_date, time_of_day(16, 0), tzinfo=eastern)
+
+    if session_start <= local <= session_close:
+        return local
+    return session_close
+
+
+def _resolve_session_date(local: datetime) -> datetime.date:
+    session_date = local.date()
+    if local.weekday() >= 5:
+        session_date = _previous_weekday(session_date - timedelta(days=1))
+    elif local.time() < time_of_day(9, 30):
+        session_date = _previous_weekday(session_date - timedelta(days=1))
+    return session_date
+
+
+def _previous_weekday(value: datetime.date) -> datetime.date:
+    while value.weekday() >= 5:
+        value -= timedelta(days=1)
+    return value

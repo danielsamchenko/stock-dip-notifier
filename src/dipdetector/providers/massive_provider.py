@@ -105,6 +105,43 @@ class MassiveProvider(PriceProvider):
             raise last_error
         return []
 
+    def fetch_aggregate_bars(
+        self,
+        symbol: str,
+        start_dt: datetime,
+        end_dt: datetime,
+        timespan: str,
+        multiplier: int = 1,
+    ) -> list[dict[str, float | int]]:
+        start_ms = int(start_dt.timestamp() * 1000)
+        end_ms = int(end_dt.timestamp() * 1000)
+        retries = [0.5, 1.5, 3.0]
+        last_error: Exception | None = None
+
+        for attempt in range(len(retries) + 1):
+            try:
+                aggs = self._client.list_aggs(
+                    ticker=symbol,
+                    multiplier=multiplier,
+                    timespan=timespan,
+                    from_=start_ms,
+                    to=end_ms,
+                    limit=50000,
+                    adjusted=True,
+                )
+                bars = [_agg_to_intraday_bar(agg) for agg in aggs]
+                cleaned = [bar for bar in bars if bar is not None]
+                cleaned.sort(key=lambda bar: bar["t"])
+                return cleaned
+            except Exception as exc:  # pragma: no cover - retry behavior tested elsewhere
+                last_error = exc
+                if attempt < len(retries):
+                    time.sleep(retries[attempt])
+
+        if last_error:
+            raise last_error
+        return []
+
 
 def _agg_to_bar(agg: Any) -> DailyPriceBar | None:
     timestamp = _get_agg_value(agg, "timestamp", "t")
