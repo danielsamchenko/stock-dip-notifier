@@ -161,6 +161,23 @@ export async function getIntradayChart(
   };
 }
 
+export async function getDailyChart(
+  symbol: string,
+  lookbackDays: number,
+  timespan: "hour" | "day" = "day",
+  multiplier = 1,
+): Promise<IntradayChartResponse> {
+  const params = `?lookback_days=${lookbackDays}&timespan=${timespan}&multiplier=${multiplier}`;
+  const data = await fetchJson<Record<string, unknown>>(`/chart/daily/${symbol}${params}`);
+  const bars = Array.isArray(data.bars) ? data.bars : [];
+
+  return {
+    symbol: String(data.symbol ?? symbol),
+    timespan: String(data.timespan ?? "day"),
+    bars: bars.map((item) => toIntradayBar(item as Record<string, unknown>)),
+  };
+}
+
 export async function refreshBackend(days = 30): Promise<void> {
   await fetchJson(`/refresh?days=${days}`, { method: "POST", timeoutMs: REFRESH_TIMEOUT_MS });
 }

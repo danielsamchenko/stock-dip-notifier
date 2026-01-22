@@ -5,6 +5,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  Image,
   useColorScheme,
   View,
 } from "react-native";
@@ -13,7 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { LineChart } from "../../src/components/LineChart";
-import { buildWsUrl, getIntradayChart, getTicker } from "../../src/lib/api";
+import { buildWsUrl, getDailyChart, getIntradayChart, getTicker } from "../../src/lib/api";
+import { getLogoUrl } from "../../src/lib/logos";
 import { IntradayBar, TickerDetail } from "../../src/types";
 
 const TIME_RANGES = ["1D", "1W", "1M", "1Y", "ALL"] as const;
@@ -31,10 +33,14 @@ export default function TickerScreen() {
   const [chartError, setChartError] = useState<string | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartReload, setChartReload] = useState(0);
-  const [liveStatus, setLiveStatus] = useState<"online" | "offline">("offline");
   const theme = isDark ? darkTheme : lightTheme;
 
   const symbol = parseStringParam(params.symbol) ?? "—";
+  const currency = guessCurrency(symbol);
+  const changeLabel = getChangeLabel(selectedRange);
+  const dailyLookbackDays = getDailyLookbackDays(selectedRange);
+  const dailyTimespan = getDailyTimespan(selectedRange);
+  const chartLabelMode = getChartLabelMode(selectedRange);
 
   useEffect(() => {
     if (!symbol || symbol === "—") {
@@ -62,13 +68,18 @@ export default function TickerScreen() {
   }, [symbol]);
 
   useEffect(() => {
-    if (!symbol || symbol === "—" || selectedRange !== "1D") {
+    if (!symbol || symbol === "—") {
       return;
     }
     let isMounted = true;
     setChartError(null);
     setChartLoading(true);
-    getIntradayChart(symbol, DEFAULT_LOOKBACK_MINUTES)
+    const promise =
+      selectedRange === "1D"
+        ? getIntradayChart(symbol, DEFAULT_LOOKBACK_MINUTES)
+        : getDailyChart(symbol, dailyLookbackDays, dailyTimespan);
+
+    promise
       .then((data) => {
         if (isMounted) {
           setChartBars(data.bars);
@@ -90,20 +101,19 @@ export default function TickerScreen() {
     return () => {
       isMounted = false;
     };
-  }, [symbol, selectedRange, chartReload]);
+  }, [symbol, selectedRange, chartReload, dailyLookbackDays, dailyTimespan]);
 
   useEffect(() => {
     if (!symbol || symbol === "—" || selectedRange !== "1D") {
-      setLiveStatus("offline");
       return;
     }
 
     const wsUrl = buildWsUrl(`/ws/chart/intraday/${symbol}`);
     const ws = new WebSocket(wsUrl);
 
-    ws.onopen = () => setLiveStatus("online");
-    ws.onerror = () => setLiveStatus("offline");
-    ws.onclose = () => setLiveStatus("offline");
+    ws.onopen = () => {};
+    ws.onerror = () => {};
+    ws.onclose = () => {};
 
     ws.onmessage = (event) => {
       const parsed = safeJsonParse(event.data);
@@ -127,6 +137,18 @@ export default function TickerScreen() {
 
   const companyName = detail?.name?.trim();
   const headerName = companyName ? companyName : "Name not available yet";
+  const lastBar = chartBars.length ? chartBars[chartBars.length - 1] : null;
+  const firstBar = chartBars.length ? chartBars[0] : null;
+  const priceText = lastBar ? `${lastBar.c.toFixed(2)} ${currency}` : "—";
+  const changeInfo = buildChangeInfo(firstBar?.c, lastBar?.c, changeLabel);
+  const changeColor = changeInfo && changeInfo.delta < 0 ? theme.negative : theme.positive;
+  const chartStroke = changeInfo && changeInfo.delta < 0 ? theme.negative : theme.accent;
+  const chartFill =
+    changeInfo && changeInfo.delta < 0
+      ? theme.negative
+      : changeInfo && changeInfo.delta > 0
+        ? theme.positive
+        : undefined;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -148,11 +170,16 @@ export default function TickerScreen() {
         </View>
 
         <View style={styles.headerBlock}>
-          <Text style={[styles.tickerText, { color: theme.text }]}>{symbol}</Text>
-          <Text style={[styles.companyText, { color: theme.muted }]}>{headerName}</Text>
-          {detailError ? (
-            <Text style={[styles.errorText, { color: theme.error }]}>{detailError}</Text>
-          ) : null}
+          <View style={styles.headerRow}>
+            <Logo symbol={symbol} theme={theme} />
+            <View style={styles.headerTextBlock}>
+              <Text style={[styles.tickerText, { color: theme.text }]}>{symbol}</Text>
+              <Text style={[styles.companyText, { color: theme.muted }]}>{headerName}</Text>
+              {detailError ? (
+                <Text style={[styles.errorText, { color: theme.error }]}>{detailError}</Text>
+              ) : null}
+            </View>
+          </View>
         </View>
 
         <View style={styles.rangeRow}>
@@ -179,48 +206,50 @@ export default function TickerScreen() {
         </View>
 
         <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {selectedRange !== "1D" ? (
-            <View style={styles.chartPlaceholder}>
-              <Text style={[styles.chartTitle, { color: theme.text }]}>Coming soon</Text>
-              <Text style={[styles.chartSubtitle, { color: theme.muted }]}
-              >
-                Intraday chart only for now.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.chartContent}>
-              <View style={styles.chartHeaderRow}>
-                <Text style={[styles.chartTitle, { color: theme.text }]}>Intraday</Text>
-                <Text
-                  style={[
-                    styles.liveStatus,
-                    { color: liveStatus === "online" ? theme.accent : theme.muted },
-                  ]}
-                >
-                  {liveStatus === "online" ? "Live" : "Live: offline"}
-                </Text>
+          <View style={styles.chartContent}>
+            <View style={styles.priceRow}>
+              <View style={styles.priceLeft}>
+                {lastBar ? (
+                  <>
+                    <Text style={[styles.priceText, { color: theme.text }]}>
+                      {lastBar.c.toFixed(2)}
+                    </Text>
+                    <Text style={[styles.currencyText, { color: theme.muted }]}>
+                      {currency}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={[styles.priceText, { color: theme.text }]}>—</Text>
+                )}
               </View>
-              {chartError ? (
-                <View style={styles.chartPlaceholder}>
-                  <Text style={[styles.chartSubtitle, { color: theme.error }]}>{chartError}</Text>
-                  <Pressable
-                    style={[styles.retryButton, { borderColor: theme.border }]}
-                    onPress={() => setChartReload((prev) => prev + 1)}
-                  >
-                    <Text style={[styles.retryText, { color: theme.text }]}>Retry</Text>
-                  </Pressable>
-                </View>
-              ) : chartLoading ? (
-                <Text style={[styles.chartSubtitle, { color: theme.muted }]}>Loading chart…</Text>
-              ) : (
-                <LineChart
-                  data={chartBars.map((bar) => ({ t: bar.t, c: bar.c }))}
-                  stroke={theme.accent}
-                  textColor={theme.text}
-                />
-              )}
+              {changeInfo ? (
+                <Text style={[styles.changeText, { color: changeColor }]}>
+                  {changeInfo.text}
+                </Text>
+              ) : null}
             </View>
-          )}
+            {chartError ? (
+              <View style={styles.chartPlaceholder}>
+                <Text style={[styles.chartSubtitle, { color: theme.error }]}>{chartError}</Text>
+                <Pressable
+                  style={[styles.retryButton, { borderColor: theme.border }]}
+                  onPress={() => setChartReload((prev) => prev + 1)}
+                >
+                  <Text style={[styles.retryText, { color: theme.text }]}>Retry</Text>
+                </Pressable>
+              </View>
+            ) : chartLoading ? (
+              <Text style={[styles.chartSubtitle, { color: theme.muted }]}>Loading chart…</Text>
+            ) : (
+              <LineChart
+                data={chartBars.map((bar) => ({ t: bar.t, c: bar.c }))}
+                stroke={chartStroke}
+                textColor={theme.text}
+                fillColor={chartFill}
+                labelMode={chartLabelMode}
+              />
+            )}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -279,6 +308,36 @@ function safeJsonParse(value: string): unknown {
   }
 }
 
+function Logo({ symbol, theme }: { symbol: string; theme: Theme }) {
+  const [failed, setFailed] = useState(false);
+  const letter = symbol ? symbol[0] : "?";
+
+  if (!symbol || failed) {
+    return (
+      <View
+        style={[
+          styles.logoContainer,
+          styles.logoFallback,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}
+      >
+        <Text style={[styles.logoText, { color: theme.text }]}>{letter}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.logoContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+      <Image
+        source={{ uri: getLogoUrl(symbol) }}
+        style={styles.logoImage}
+        resizeMode="contain"
+        onError={() => setFailed(true)}
+      />
+    </View>
+  );
+}
+
 type Theme = {
   background: string;
   card: string;
@@ -289,6 +348,8 @@ type Theme = {
   accent: string;
   accentText: string;
   error: string;
+  positive: string;
+  negative: string;
 };
 
 const lightTheme: Theme = {
@@ -301,6 +362,8 @@ const lightTheme: Theme = {
   accent: "#111827",
   accentText: "#ffffff",
   error: "#b91c1c",
+  positive: "#15803d",
+  negative: "#dc2626",
 };
 
 const darkTheme: Theme = {
@@ -313,6 +376,8 @@ const darkTheme: Theme = {
   accent: "#22c55e",
   accentText: "#111827",
   error: "#f87171",
+  positive: "#22c55e",
+  negative: "#f87171",
 };
 
 const styles = StyleSheet.create({
@@ -344,6 +409,14 @@ const styles = StyleSheet.create({
   headerBlock: {
     marginBottom: 16,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerTextBlock: {
+    flex: 1,
+  },
   tickerText: {
     fontSize: 32,
     fontWeight: "700",
@@ -355,6 +428,24 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 8,
     fontSize: 12,
+  },
+  logoContainer: {
+    width: 54,
+    height: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  logoImage: {
+    width: 40,
+    height: 40,
+  },
+  logoFallback: {
+    borderStyle: "dashed",
+  },
+  logoText: {
+    fontSize: 18,
+    fontWeight: "600",
   },
   rangeRow: {
     flexDirection: "row",
@@ -381,13 +472,27 @@ const styles = StyleSheet.create({
   chartContent: {
     gap: 12,
   },
-  chartHeaderRow: {
+  priceRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    alignItems: "baseline",
+    justifyContent: "flex-start",
+    gap: 10,
   },
-  chartTitle: {
-    fontSize: 16,
+  priceLeft: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+  },
+  priceText: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  currencyText: {
+    fontSize: 12,
+    fontWeight: "400",
+  },
+  changeText: {
+    fontSize: 13,
     fontWeight: "600",
   },
   chartSubtitle: {
@@ -398,10 +503,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 24,
-  },
-  liveStatus: {
-    fontSize: 12,
-    fontWeight: "600",
   },
   retryButton: {
     marginTop: 12,
@@ -415,3 +516,92 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+
+function buildChangeInfo(
+  start?: number,
+  end?: number,
+  label?: string,
+): { text: string; delta: number } | null {
+  if (start === undefined || end === undefined || start === 0) {
+    return null;
+  }
+  const delta = end - start;
+  const pct = (delta / start) * 100;
+  const sign = delta >= 0 ? "+" : "";
+  const text = `${sign}${delta.toFixed(2)} (${sign}${pct.toFixed(2)}%) ${label ?? ""}`.trim();
+  return { text, delta };
+}
+
+function getChangeLabel(range: (typeof TIME_RANGES)[number]): string {
+  switch (range) {
+    case "1D":
+      return "Today";
+    case "1W":
+      return "This week";
+    case "1M":
+      return "This month";
+    case "1Y":
+      return "This year";
+    default:
+      return "All time";
+  }
+}
+
+function getDailyLookbackDays(range: (typeof TIME_RANGES)[number]): number {
+  switch (range) {
+    case "1W":
+      return 7;
+    case "1M":
+      return 30;
+    case "1Y":
+      return 365;
+    case "ALL":
+      return 1825;
+    default:
+      return 7;
+  }
+}
+
+function getDailyTimespan(range: (typeof TIME_RANGES)[number]): "hour" | "day" {
+  switch (range) {
+    case "1W":
+    case "1M":
+      return "hour";
+    default:
+      return "day";
+  }
+}
+
+function getChartLabelMode(
+  range: (typeof TIME_RANGES)[number],
+): "time" | "date" | "monthYear" | "none" {
+  switch (range) {
+    case "1D":
+      return "none";
+    case "1W":
+    case "1M":
+      return "date";
+    default:
+      return "monthYear";
+  }
+}
+
+function guessCurrency(symbol: string): string {
+  const upper = symbol.toUpperCase();
+  if (upper.endsWith(".TO") || upper.endsWith(".V")) {
+    return "CAD";
+  }
+  if (upper.endsWith(".L")) {
+    return "GBP";
+  }
+  if (upper.endsWith(".AS")) {
+    return "EUR";
+  }
+  if (upper.endsWith(".SW")) {
+    return "CHF";
+  }
+  if (upper.endsWith(".T")) {
+    return "JPY";
+  }
+  return "USD";
+}
