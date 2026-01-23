@@ -5,6 +5,7 @@ import {
   DipRow,
   IntradayBar,
   IntradayChartResponse,
+  OverviewResponse,
   PriceRow,
   TickerDetail,
 } from "../types";
@@ -176,6 +177,10 @@ export async function getDailyChart(
     timespan: String(data.timespan ?? "day"),
     bars: bars.map((item) => toIntradayBar(item as Record<string, unknown>)),
   };
+}
+
+export async function getOverview(symbol: string): Promise<OverviewResponse> {
+  return await fetchJson<OverviewResponse>(`/tickers/${symbol}/overview`);
 }
 
 export async function refreshBackend(days = 30): Promise<void> {

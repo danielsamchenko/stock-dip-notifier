@@ -197,9 +197,6 @@ export default function DipsScreen() {
                 <Logo symbol={item.symbol} theme={theme} />
                 <View style={styles.symbolBlock}>
                   <Text style={[styles.symbol, { color: theme.text }]}>{item.symbol}</Text>
-                  <Text style={[styles.date, { color: theme.muted }]}>
-                    As of {item.date || "n/a"}
-                  </Text>
                 </View>
               </View>
               <View style={styles.rightGroup}>

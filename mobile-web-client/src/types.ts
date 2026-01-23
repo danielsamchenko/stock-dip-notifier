@@ -57,3 +57,18 @@ export type IntradayChartResponse = {
   timespan: string;
   bars: IntradayBar[];
 };
+
+export type OverviewArticle = {
+  title: string;
+  publisher: string | null;
+  published_utc: string | null;
+  url: string | null;
+  sentiment: string | null;
+};
+
+export type OverviewResponse = {
+  symbol: string;
+  asof: string;
+  overview: string;
+  articles: OverviewArticle[];
+};

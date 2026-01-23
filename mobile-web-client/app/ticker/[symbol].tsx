@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   Image,
+  Linking,
   useColorScheme,
   View,
 } from "react-native";
@@ -14,9 +15,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { LineChart } from "../../src/components/LineChart";
-import { buildWsUrl, getDailyChart, getIntradayChart, getTicker } from "../../src/lib/api";
+import {
+  buildWsUrl,
+  getDailyChart,
+  getIntradayChart,
+  getOverview,
+  getTicker,
+} from "../../src/lib/api";
 import { getLogoUrl } from "../../src/lib/logos";
-import { IntradayBar, TickerDetail } from "../../src/types";
+import { IntradayBar, OverviewResponse, TickerDetail } from "../../src/types";
 
 const TIME_RANGES = ["DIP", "1D", "1W", "1M", "1Y", "ALL"] as const;
 const MAX_BARS = 500;
@@ -33,6 +40,10 @@ export default function TickerScreen() {
   const [chartError, setChartError] = useState<string | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartReload, setChartReload] = useState(0);
+  const [overview, setOverview] = useState<OverviewResponse | null>(null);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewReload, setOverviewReload] = useState(0);
   const theme = isDark ? darkTheme : lightTheme;
 
   const symbol = parseStringParam(params.symbol) ?? "—";
@@ -138,11 +149,41 @@ export default function TickerScreen() {
     };
   }, [symbol, selectedRange]);
 
+  useEffect(() => {
+    if (!symbol || symbol === "—") {
+      return;
+    }
+    let isMounted = true;
+    setOverviewError(null);
+    setOverviewLoading(true);
+    getOverview(symbol)
+      .then((data) => {
+        if (isMounted) {
+          setOverview(data);
+        }
+      })
+      .catch((err) => {
+        if (!isMounted) {
+          return;
+        }
+        const message = err instanceof Error ? err.message : "Failed to load overview";
+        setOverviewError(message);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setOverviewLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [symbol, overviewReload]);
+
   const companyName = detail?.name?.trim();
   const headerName = companyName ? companyName : "Name not available yet";
   const lastBar = chartBars.length ? chartBars[chartBars.length - 1] : null;
   const firstBar = chartBars.length ? chartBars[0] : null;
-  const priceText = lastBar ? `${lastBar.c.toFixed(2)} ${currency}` : "—";
   const changeInfo = buildChangeInfo(firstBar?.c, lastBar?.c, changeLabel);
   const changeColor = changeInfo && changeInfo.delta < 0 ? theme.negative : theme.positive;
   const chartStroke = changeInfo && changeInfo.delta < 0 ? theme.negative : theme.accent;
@@ -164,7 +205,7 @@ export default function TickerScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Pressable style={styles.backButton} onPress={() => router.replace("/")}>
             <Ionicons name="chevron-back" size={20} color={theme.text} />
           </Pressable>
           <Pressable
@@ -268,6 +309,56 @@ export default function TickerScreen() {
               />
             )}
           </View>
+        </View>
+
+        <View style={[styles.overviewCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Overview</Text>
+          {overviewLoading ? (
+            <Text style={[styles.chartSubtitle, { color: theme.muted }]}>Loading overview…</Text>
+          ) : overviewError ? (
+            <View style={styles.chartPlaceholder}>
+              <Text style={[styles.chartSubtitle, { color: theme.error }]}>Overview unavailable</Text>
+              <Pressable
+                style={[styles.retryButton, { borderColor: theme.border }]}
+                onPress={() => setOverviewReload((prev) => prev + 1)}
+              >
+                <Text style={[styles.retryText, { color: theme.text }]}>Retry</Text>
+              </Pressable>
+            </View>
+          ) : overview ? (
+            <>
+              <Text style={[styles.overviewText, { color: theme.text }]}>{overview.overview}</Text>
+              {overview.articles.length ? (
+                <View style={styles.articleList}>
+                  {overview.articles.map((article) => (
+                    <Pressable
+                      key={article.url ?? article.title}
+                      style={styles.articleRow}
+                      onPress={() => article.url && Linking.openURL(article.url)}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.articleTitle, { color: theme.text }]}
+                      >
+                        {article.title}
+                      </Text>
+                      <Text style={[styles.articleMeta, { color: theme.muted }]}>
+                        {formatArticleMeta(article.publisher, article.published_utc)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : (
+                <Text style={[styles.chartSubtitle, { color: theme.muted }]}>
+                  No recent news overview available.
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={[styles.chartSubtitle, { color: theme.muted }]}>
+              No recent news overview available.
+            </Text>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -554,6 +645,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+  overviewCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 24,
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  overviewText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  articleList: {
+    gap: 10,
+  },
+  articleRow: {
+    gap: 2,
+  },
+  articleTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  articleMeta: {
+    fontSize: 12,
+  },
 });
 
 function buildChangeInfo(
@@ -585,6 +704,38 @@ function formatDipParts(
     daysText: `(${roundedDays}d)`,
     value,
   };
+}
+
+function formatArticleMeta(publisher: string | null, publishedUtc: string | null): string {
+  const parts: string[] = [];
+  if (publisher) {
+    parts.push(publisher);
+  }
+  if (publishedUtc) {
+    const label = formatRelativeTime(publishedUtc);
+    if (label) {
+      parts.push(label);
+    }
+  }
+  return parts.join(" • ");
+}
+
+function formatRelativeTime(value: string): string | null {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return null;
+  }
+  const diffMs = Date.now() - parsed;
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
 }
 
 function getChangeLabel(range: (typeof TIME_RANGES)[number]): string {
