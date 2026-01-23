@@ -58,17 +58,18 @@ export type IntradayChartResponse = {
   bars: IntradayBar[];
 };
 
-export type OverviewArticle = {
-  title: string;
+export type OverviewSource = {
+  title: string | null;
   publisher: string | null;
   published_utc: string | null;
   url: string | null;
-  sentiment: string | null;
 };
 
 export type OverviewResponse = {
   symbol: string;
   asof: string;
   overview: string;
-  articles: OverviewArticle[];
+  drivers?: Record<string, number> | null;
+  key_factors: string[];
+  sources: OverviewSource[];
 };

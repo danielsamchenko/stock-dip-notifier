@@ -59,7 +59,9 @@ alembic upgrade head
 python -m dipdetector.ingest.ingest_prices --days 30
 ```
 
-Requires `MASSIVE_API_KEY` to be set.
+Requires `MASSIVE_API_KEY` to be set for market data.
+AI overview caching uses AWS Lambda, so set:
+`AWS_REGION`, `AI_OVERVIEW_LAMBDA_NAME`, and `AI_OVERVIEW_TTL_MIN`.
 
 ## API usage
 

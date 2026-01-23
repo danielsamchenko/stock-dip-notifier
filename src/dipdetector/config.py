@@ -50,16 +50,16 @@ def get_live_chart_lookback_minutes() -> int:
     return _get_int("LIVE_CHART_LOOKBACK_MINUTES", 390)
 
 
-def get_news_lookback_days() -> int:
-    return _get_int("NEWS_LOOKBACK_DAYS", 7)
+def get_aws_region() -> str:
+    return os.getenv("AWS_REGION", "us-east-2").strip()
 
 
-def get_news_max_items() -> int:
-    return _get_int("NEWS_MAX_ITEMS", 3)
+def get_ai_overview_lambda_name() -> str:
+    return os.getenv("AI_OVERVIEW_LAMBDA_NAME", "stock-dip-ai-overview").strip()
 
 
-def get_news_overview_cache_ttl_min() -> int:
-    return _get_int("NEWS_OVERVIEW_CACHE_TTL_MIN", 60)
+def get_ai_overview_ttl_min() -> int:
+    return _get_int("AI_OVERVIEW_TTL_MIN", 360)
 
 
 def get_log_level() -> str:

@@ -209,6 +209,9 @@ export default function TickerScreen() {
   const cardWidth = isWide ? (width - 48) / 2 : width - 32;
   const dialBase = isWide ? 200 : Math.min(260, width - 64);
   const dialSize = Math.min(dialBase * 2, cardWidth - 32);
+  const overviewText = overview?.overview ?? "Overview unavailable right now.";
+  const overviewFactors = overview?.key_factors ?? [];
+  const overviewSources = overview?.sources ?? [];
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -340,36 +343,44 @@ export default function TickerScreen() {
             </View>
           ) : overview ? (
             <>
-              <Text style={[styles.overviewText, { color: theme.text }]}>{overview.overview}</Text>
-              {overview.articles.length ? (
+              <Text style={[styles.overviewText, { color: theme.text }]}>{overviewText}</Text>
+              {overviewFactors.length ? (
+                <View style={styles.factorList}>
+                  {overviewFactors.map((factor, index) => (
+                    <Text
+                      key={`${factor}-${index}`}
+                      style={[styles.factorItem, { color: theme.text }]}
+                    >
+                      • {factor}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+              {overviewSources.length ? (
                 <View style={styles.articleList}>
-                  {overview.articles.map((article) => (
+                  {overviewSources.map((source, index) => (
                     <Pressable
-                      key={article.url ?? article.title}
+                      key={`${source.url ?? source.title ?? index}`}
                       style={styles.articleRow}
-                      onPress={() => article.url && Linking.openURL(article.url)}
+                      onPress={() => source.url && Linking.openURL(source.url)}
                     >
                       <Text
                         numberOfLines={1}
                         style={[styles.articleTitle, { color: theme.text }]}
                       >
-                        {article.title}
+                        {source.title ?? "Source"}
                       </Text>
                       <Text style={[styles.articleMeta, { color: theme.muted }]}>
-                        {formatArticleMeta(article.publisher, article.published_utc)}
+                        {formatArticleMeta(source.publisher, source.published_utc)}
                       </Text>
                     </Pressable>
                   ))}
                 </View>
-              ) : (
-                <Text style={[styles.chartSubtitle, { color: theme.muted }]}>
-                  No recent news overview available.
-                </Text>
-              )}
+              ) : null}
             </>
           ) : (
             <Text style={[styles.chartSubtitle, { color: theme.muted }]}>
-              No recent news overview available.
+              Overview unavailable right now.
             </Text>
           )}
         </View>
@@ -807,6 +818,13 @@ const styles = StyleSheet.create({
   overviewText: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  factorList: {
+    gap: 6,
+  },
+  factorItem: {
+    fontSize: 12,
+    lineHeight: 16,
   },
   articleList: {
     gap: 10,

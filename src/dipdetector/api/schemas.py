@@ -87,19 +87,26 @@ class IntradayChartResponse(BaseModel):
     bars: list[IntradayBarOut]
 
 
-class OverviewArticleOut(BaseModel):
-    title: str
-    publisher: str | None
-    published_utc: str | None
-    url: str | None
-    sentiment: str | None
+class OverviewSourceOut(BaseModel):
+    title: str | None = None
+    publisher: str | None = None
+    published_utc: str | None = None
+    url: str | None = None
+
+
+class OverviewDriversOut(BaseModel):
+    market: float | None = None
+    industry: float | None = None
+    company: float | None = None
 
 
 class OverviewResponseOut(BaseModel):
     symbol: str
     asof: date
     overview: str
-    articles: list[OverviewArticleOut]
+    drivers: OverviewDriversOut | dict[str, float] | None = None
+    key_factors: list[str]
+    sources: list[OverviewSourceOut]
 
 
 def to_float(value: Any) -> float:

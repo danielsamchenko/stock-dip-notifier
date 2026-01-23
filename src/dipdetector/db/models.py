@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
@@ -107,3 +107,22 @@ class Alert(Base):
     )
 
     ticker: Mapped[Ticker] = relationship(back_populates="alerts")
+
+
+class AIOverview(Base):
+    __tablename__ = "ai_overviews"
+    __table_args__ = (
+        UniqueConstraint("symbol", "asof", name="uq_ai_overviews_symbol_asof"),
+        Index("ix_ai_overviews_symbol", "symbol"),
+        Index("ix_ai_overviews_asof", "asof"),
+        Index("ix_ai_overviews_created_at", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    symbol: Mapped[str] = mapped_column(String(16), nullable=False)
+    asof: Mapped[date] = mapped_column(Date, nullable=False)
+    overview_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    model_id: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

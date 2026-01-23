@@ -1,1 +1,0 @@
-"""News overview helpers."""
