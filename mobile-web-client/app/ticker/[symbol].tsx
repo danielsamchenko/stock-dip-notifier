@@ -8,6 +8,7 @@ import {
   Image,
   Linking,
   useColorScheme,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { LineChart } from "../../src/components/LineChart";
+import { RecoveryDial } from "../../src/components/RecoveryDial";
 import { TernaryDriverPlot } from "../../src/components/TernaryDriverPlot";
 import {
   buildWsUrl,
@@ -25,6 +27,7 @@ import {
 } from "../../src/lib/api";
 import { getLogoUrl } from "../../src/lib/logos";
 import { getMockDrivers } from "../../src/lib/mockDrivers";
+import { getMockRecovery } from "../../src/lib/mockRecovery";
 import { IntradayBar, OverviewResponse, TickerDetail } from "../../src/types";
 
 const TIME_RANGES = ["DIP", "1D", "1W", "1M", "1Y", "ALL"] as const;
@@ -34,6 +37,8 @@ const DEFAULT_LOOKBACK_MINUTES = 390;
 export default function TickerScreen() {
   const params = useLocalSearchParams();
   const systemScheme = useColorScheme();
+  const { width } = useWindowDimensions();
+  const isWide = width >= 820;
   const [isDark, setIsDark] = useState<boolean>(systemScheme === "dark");
   const [selectedRange, setSelectedRange] = useState<(typeof TIME_RANGES)[number]>("DIP");
   const [detail, setDetail] = useState<TickerDetail | null>(null);
@@ -199,7 +204,11 @@ export default function TickerScreen() {
   const dipColor =
     dipInfo && dipInfo.value >= 0 ? theme.positive : dipInfo ? theme.negative : theme.muted;
   const driverData = getMockDrivers(symbol);
-  const driverBreakdown = `Market ${driverData.market.toFixed(2)} • Industry ${driverData.industry.toFixed(2)} • Company ${driverData.company.toFixed(2)}`;
+  const recovery = getMockRecovery(symbol);
+  const plotSize = isWide ? 200 : Math.min(260, width - 64);
+  const cardWidth = isWide ? (width - 48) / 2 : width - 32;
+  const dialBase = isWide ? 200 : Math.min(260, width - 64);
+  const dialSize = Math.min(dialBase * 2, cardWidth - 32);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -365,35 +374,77 @@ export default function TickerScreen() {
           )}
         </View>
 
-        <View style={[styles.overviewCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            What Is Driving the Dip?
-          </Text>
-          <View style={styles.driversRow}>
-            <View
-              style={[
-                styles.driversPlotCard,
-                { backgroundColor: theme.background, borderColor: theme.border },
-              ]}
-            >
-              <TernaryDriverPlot
-                market={driverData.market}
-                industry={driverData.industry}
-                company={driverData.company}
-                confidence={driverData.confidence}
-                color={theme.accent}
-                textColor={theme.text}
-                borderColor={theme.border}
-                backgroundColor={theme.plotField}
-              />
-            </View>
-            <View style={styles.driversTextCard}>
+        <View style={[styles.dualRow, { flexDirection: isWide ? "row" : "column" }]}>
+          <View
+            style={[
+              styles.dualCard,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+                flex: isWide ? 1 : undefined,
+              },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              What's Driving the Dip
+            </Text>
+            <View style={styles.driversColumn}>
+              <View
+                style={[
+                  styles.driversPlotCard,
+                  {
+                    backgroundColor: theme.plotField,
+                    borderColor: theme.border,
+                    alignSelf: "stretch",
+                  },
+                ]}
+              >
+                <TernaryDriverPlot
+                  market={driverData.market}
+                  industry={driverData.industry}
+                  company={driverData.company}
+                  confidence={driverData.confidence}
+                  size={plotSize}
+                  color={theme.accent}
+                  textColor={theme.text}
+                  borderColor={theme.border}
+                  backgroundColor={theme.plotField}
+                />
+              </View>
               <Text style={[styles.driversLabel, { color: theme.muted }]}>Driver Summary</Text>
               <Text style={[styles.driversSummary, { color: theme.text }]}>
                 {driverData.summary}
               </Text>
-              <Text style={[styles.driversBreakdown, { color: theme.mutedLight }]}>
-                {driverBreakdown}
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.dualCard,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+                flex: isWide ? 1 : undefined,
+              },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Recovery Outlook</Text>
+            <View style={styles.recoveryBody}>
+              <View style={styles.recoveryDialWrap}>
+                <RecoveryDial
+                  score={recovery.score}
+                  size={dialSize}
+                  textColor={theme.text}
+                  trackColor={theme.border}
+                  needleColor={theme.text}
+                  gradientTo={theme.accent}
+                />
+              </View>
+              <Text style={[styles.recoveryScore, { color: theme.text }]}>
+                Recovery Score: {recovery.score}/100
+              </Text>
+              <Text style={[styles.recoveryLabel, { color: theme.muted }]}>
+                {recovery.label}
               </Text>
             </View>
           </View>
@@ -693,36 +744,65 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     gap: 12,
   },
+  dualRow: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  dualCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    gap: 12,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
   },
   driversRow: {
-    flexDirection: "row",
     gap: 12,
     alignItems: "center",
+  },
+  driversColumn: {
+    alignItems: "center",
+    gap: 12,
   },
   driversPlotCard: {
     padding: 8,
     borderRadius: 12,
     borderWidth: 1,
-  },
-  driversTextCard: {
-    flex: 1,
-    gap: 6,
+    alignItems: "center",
   },
   driversLabel: {
     fontSize: 12,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.6,
+    textAlign: "center",
   },
   driversSummary: {
     fontSize: 13,
     lineHeight: 18,
+    textAlign: "center",
   },
-  driversBreakdown: {
-    fontSize: 11,
+  recoveryBody: {
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+    justifyContent: "flex-start",
+    marginTop: -18,
+  },
+  recoveryDialWrap: {
+    marginTop: -64,
+  },
+  recoveryScore: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  recoveryLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   overviewText: {
     fontSize: 13,
