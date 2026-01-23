@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { LineChart } from "../../src/components/LineChart";
+import { TernaryDriverPlot } from "../../src/components/TernaryDriverPlot";
 import {
   buildWsUrl,
   getDailyChart,
@@ -23,6 +24,7 @@ import {
   getTicker,
 } from "../../src/lib/api";
 import { getLogoUrl } from "../../src/lib/logos";
+import { getMockDrivers } from "../../src/lib/mockDrivers";
 import { IntradayBar, OverviewResponse, TickerDetail } from "../../src/types";
 
 const TIME_RANGES = ["DIP", "1D", "1W", "1M", "1Y", "ALL"] as const;
@@ -196,6 +198,8 @@ export default function TickerScreen() {
   const dipInfo = formatDipParts(dipValue, dipDays);
   const dipColor =
     dipInfo && dipInfo.value >= 0 ? theme.positive : dipInfo ? theme.negative : theme.muted;
+  const driverData = getMockDrivers(symbol);
+  const driverBreakdown = `Market ${driverData.market.toFixed(2)} • Industry ${driverData.industry.toFixed(2)} • Company ${driverData.company.toFixed(2)}`;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -360,6 +364,40 @@ export default function TickerScreen() {
             </Text>
           )}
         </View>
+
+        <View style={[styles.overviewCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            What Is Driving the Dip?
+          </Text>
+          <View style={styles.driversRow}>
+            <View
+              style={[
+                styles.driversPlotCard,
+                { backgroundColor: theme.background, borderColor: theme.border },
+              ]}
+            >
+              <TernaryDriverPlot
+                market={driverData.market}
+                industry={driverData.industry}
+                company={driverData.company}
+                confidence={driverData.confidence}
+                color={theme.accent}
+                textColor={theme.text}
+                borderColor={theme.border}
+                backgroundColor={theme.plotField}
+              />
+            </View>
+            <View style={styles.driversTextCard}>
+              <Text style={[styles.driversLabel, { color: theme.muted }]}>Driver Summary</Text>
+              <Text style={[styles.driversSummary, { color: theme.text }]}>
+                {driverData.summary}
+              </Text>
+              <Text style={[styles.driversBreakdown, { color: theme.mutedLight }]}>
+                {driverBreakdown}
+              </Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -453,6 +491,7 @@ function Logo({ symbol, theme }: { symbol: string; theme: Theme }) {
 type Theme = {
   background: string;
   card: string;
+  plotField: string;
   text: string;
   muted: string;
   mutedLight: string;
@@ -467,6 +506,7 @@ type Theme = {
 const lightTheme: Theme = {
   background: "#ffffff",
   card: "#ffffff",
+  plotField: "#f1f5f9",
   text: "#111827",
   muted: "#6b7280",
   mutedLight: "#9ca3af",
@@ -481,6 +521,7 @@ const lightTheme: Theme = {
 const darkTheme: Theme = {
   background: "#000000",
   card: "#0b0b0b",
+  plotField: "#0f172a",
   text: "#f9fafb",
   muted: "#9ca3af",
   mutedLight: "#6b7280",
@@ -655,6 +696,33 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
+  },
+  driversRow: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
+  driversPlotCard: {
+    padding: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  driversTextCard: {
+    flex: 1,
+    gap: 6,
+  },
+  driversLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  driversSummary: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  driversBreakdown: {
+    fontSize: 11,
   },
   overviewText: {
     fontSize: 13,

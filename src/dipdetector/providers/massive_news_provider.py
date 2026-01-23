@@ -110,6 +110,9 @@ def _extract_publisher(value: Any) -> str | None:
     if isinstance(value, dict):
         name = value.get("name")
         return str(name) if name else None
+    if hasattr(value, "name"):
+        name = getattr(value, "name")
+        return str(name) if name else None
     return str(value)
 
 
