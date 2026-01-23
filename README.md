@@ -77,6 +77,7 @@ curl "http://127.0.0.1:8000/dips?rule=drawdown_20d"
 curl "http://127.0.0.1:8000/dips/current"
 curl "http://127.0.0.1:8000/alerts?days=7&symbol=AAPL"
 curl "http://127.0.0.1:8000/tickers/AAPL"
+curl "http://127.0.0.1:8000/tickers/AAPL/overview"
 curl "http://127.0.0.1:8000/chart/intraday/AAPL"
 ```
 

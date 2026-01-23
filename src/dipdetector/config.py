@@ -50,6 +50,18 @@ def get_live_chart_lookback_minutes() -> int:
     return _get_int("LIVE_CHART_LOOKBACK_MINUTES", 390)
 
 
+def get_news_lookback_days() -> int:
+    return _get_int("NEWS_LOOKBACK_DAYS", 7)
+
+
+def get_news_max_items() -> int:
+    return _get_int("NEWS_MAX_ITEMS", 3)
+
+
+def get_news_overview_cache_ttl_min() -> int:
+    return _get_int("NEWS_OVERVIEW_CACHE_TTL_MIN", 60)
+
+
 def get_log_level() -> str:
     return os.getenv("LOG_LEVEL", "INFO").strip().upper()
 

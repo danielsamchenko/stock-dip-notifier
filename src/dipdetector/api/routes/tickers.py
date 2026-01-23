@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+from datetime import date as date_type
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from dipdetector import config
 from dipdetector.api.deps import get_db_session
 from dipdetector.api.schemas import (
     AlertOut,
+    OverviewArticleOut,
+    OverviewResponseOut,
     PriceOut,
     SignalOut,
     TickerDetailOut,
@@ -17,8 +22,12 @@ from dipdetector.api.schemas import (
     to_float,
 )
 from dipdetector.db.models import Alert, DailyPrice, Signal, Ticker
+from dipdetector.overview.compose import compose_overview
+from dipdetector.providers.massive_news_provider import MassiveNewsProvider
+from dipdetector.utils.ttl_cache import TTLCache
 
 router = APIRouter(tags=["tickers"])
+_overview_cache: TTLCache | None = None
 
 
 def _clamp_limit(limit: int, max_limit: int) -> int:
@@ -29,6 +38,21 @@ def _clamp_limit(limit: int, max_limit: int) -> int:
 
 def _normalize_symbol(symbol: str) -> str:
     return symbol.strip().upper()
+
+
+def _get_news_provider() -> MassiveNewsProvider:
+    return MassiveNewsProvider(
+        config.get_massive_api_key(),
+        config.get_massive_rest_base_url(),
+    )
+
+
+def _get_overview_cache() -> TTLCache:
+    global _overview_cache
+    if _overview_cache is None:
+        ttl_seconds = config.get_news_overview_cache_ttl_min() * 60
+        _overview_cache = TTLCache(ttl_seconds=ttl_seconds)
+    return _overview_cache
 
 @router.get("/tickers", response_model=list[TickerSummaryOut])
 def list_tickers(
@@ -149,3 +173,62 @@ def get_ticker(
         recent_signals=recent_signals,
         recent_alerts=recent_alerts,
     )
+
+
+@router.get("/tickers/{symbol}/overview", response_model=OverviewResponseOut)
+def get_ticker_overview(
+    symbol: str,
+    asof: date_type | None = Query(default=None),
+    session: Session = Depends(get_db_session),
+) -> OverviewResponseOut:
+    normalized = _normalize_symbol(symbol)
+    ticker = session.execute(
+        select(Ticker).where(Ticker.symbol == normalized)
+    ).scalar_one_or_none()
+
+    if not ticker:
+        raise HTTPException(status_code=404, detail="Ticker not found")
+
+    asof_date = asof or date_type.today()
+    cache_key = f"{normalized}:{asof_date.isoformat()}"
+    cache = _get_overview_cache()
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    provider = _get_news_provider()
+    lookback_days = config.get_news_lookback_days()
+
+    try:
+        items = provider.fetch_news(normalized, lookback_days=lookback_days, limit=20)
+        overview = compose_overview(
+            normalized,
+            ticker.name,
+            items,
+            asof=asof_date,
+        )
+        response = OverviewResponseOut(
+            symbol=overview.symbol,
+            asof=overview.asof,
+            overview=overview.overview,
+            articles=[
+                OverviewArticleOut(
+                    title=article.title,
+                    publisher=article.publisher,
+                    published_utc=article.published_utc,
+                    url=article.url,
+                    sentiment=article.sentiment,
+                )
+                for article in overview.articles
+            ],
+        )
+    except Exception:
+        response = OverviewResponseOut(
+            symbol=normalized,
+            asof=asof_date,
+            overview="Overview unavailable right now.",
+            articles=[],
+        )
+
+    cache.set(cache_key, response)
+    return response

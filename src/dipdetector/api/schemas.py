@@ -87,6 +87,21 @@ class IntradayChartResponse(BaseModel):
     bars: list[IntradayBarOut]
 
 
+class OverviewArticleOut(BaseModel):
+    title: str
+    publisher: str | None
+    published_utc: str | None
+    url: str | None
+    sentiment: str | None
+
+
+class OverviewResponseOut(BaseModel):
+    symbol: str
+    asof: date
+    overview: str
+    articles: list[OverviewArticleOut]
+
+
 def to_float(value: Any) -> float:
     if isinstance(value, Decimal):
         return float(value)
