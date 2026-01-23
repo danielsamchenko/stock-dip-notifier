@@ -404,7 +404,6 @@ export default function TickerScreen() {
                 style={[
                   styles.driversPlotCard,
                   {
-                    backgroundColor: theme.plotField,
                     borderColor: theme.border,
                     alignSelf: "stretch",
                   },
@@ -419,7 +418,7 @@ export default function TickerScreen() {
                   color={theme.accent}
                   textColor={theme.text}
                   borderColor={theme.border}
-                  backgroundColor={theme.plotField}
+                  backgroundColor="transparent"
                 />
               </View>
               <Text style={[styles.driversLabel, { color: theme.muted }]}>Driver Summary</Text>
@@ -583,7 +582,7 @@ const lightTheme: Theme = {
 const darkTheme: Theme = {
   background: "#000000",
   card: "#0b0b0b",
-  plotField: "#0f172a",
+  plotField: "#0b0b0b",
   text: "#f9fafb",
   muted: "#9ca3af",
   mutedLight: "#6b7280",
@@ -780,8 +779,8 @@ const styles = StyleSheet.create({
   driversPlotCard: {
     padding: 8,
     borderRadius: 12,
-    borderWidth: 1,
     alignItems: "center",
+    paddingTop: 2,
   },
   driversLabel: {
     fontSize: 12,

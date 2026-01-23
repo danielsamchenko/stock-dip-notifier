@@ -27,10 +27,12 @@ export function TernaryDriverPlot({
 }: TernaryDriverPlotProps) {
   const [timeMs, setTimeMs] = useState(0);
   const [snapUntil, setSnapUntil] = useState(0);
-  const padding = size * 0.1;
+  const padding = size * 0.05;
   const side = size - padding * 2;
   const height = side * 0.866;
   const containerHeight = height + padding * 2;
+  const labelFontSize = Math.max(10, Math.round(size * 0.06));
+  const labelOffset = Math.max(8, Math.round(size * 0.05));
 
   const top = { x: size / 2, y: padding };
   const bottomLeft = { x: padding, y: padding + height };
@@ -85,7 +87,14 @@ export function TernaryDriverPlot({
       onHoverIn={handleSnap}
     >
       <Svg width={size} height={containerHeight}>
-        <Polygon points={trianglePoints} fill={backgroundColor} stroke={borderColor} strokeWidth={1} />
+        <Polygon
+          points={trianglePoints}
+          fill={backgroundColor}
+          stroke={borderColor}
+          strokeWidth={3}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
 
         {particles.map((particle, index) => {
           const time = timeMs / 1000;
@@ -112,9 +121,30 @@ export function TernaryDriverPlot({
         })}
       </Svg>
 
-      <Text style={[styles.label, { color: textColor, left: 0, right: 0, top: 0 }]}>Market</Text>
-      <Text style={[styles.label, { color: textColor, left: 0, bottom: 0 }]}>Company</Text>
-      <Text style={[styles.label, { color: textColor, right: 0, bottom: 0 }]}>Industry</Text>
+      <Text
+        style={[
+          styles.label,
+          { color: textColor, left: 0, right: 0, top: -labelOffset, fontSize: labelFontSize },
+        ]}
+      >
+        Market
+      </Text>
+      <Text
+        style={[
+          styles.label,
+          { color: textColor, left: 0, bottom: -labelOffset, fontSize: labelFontSize },
+        ]}
+      >
+        Company
+      </Text>
+      <Text
+        style={[
+          styles.label,
+          { color: textColor, right: 0, bottom: -labelOffset, fontSize: labelFontSize },
+        ]}
+      >
+        Industry
+      </Text>
     </Pressable>
   );
 }

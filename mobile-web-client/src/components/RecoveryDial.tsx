@@ -1,9 +1,9 @@
 import Svg, {
   Circle,
   Defs,
-  Line,
   LinearGradient,
   Path,
+  Polygon,
   Stop,
   Text as SvgText,
 } from "react-native-svg";
@@ -40,7 +40,11 @@ export function RecoveryDial({
   const trackPath = describeArcClockwise(center.x, center.y, radius, startAngle, endAngle);
   const valuePath = describeArcClockwise(center.x, center.y, radius, startAngle, valueAngle);
 
-  const needleEnd = polarToCartesian(center.x, center.y, radius - stroke * 0.6, valueAngle);
+  const needleLength = radius - stroke * 0.4;
+  const needleEnd = polarToCartesian(center.x, center.y, needleLength, valueAngle);
+  const baseHalfWidth = 6;
+  const leftBase = polarToCartesian(center.x, center.y, baseHalfWidth, valueAngle - 90);
+  const rightBase = polarToCartesian(center.x, center.y, baseHalfWidth, valueAngle + 90);
 
   return (
     <Svg width={size} height={size * 0.75}>
@@ -67,16 +71,11 @@ export function RecoveryDial({
         strokeLinecap="round"
         fill="none"
       />
-      <Circle cx={center.x} cy={center.y} r={4} fill="rgba(148, 163, 184, 0.6)" />
-      <Line
-        x1={center.x}
-        y1={center.y}
-        x2={needleEnd.x}
-        y2={needleEnd.y}
-        stroke={needleColor}
-        strokeWidth={2}
-        strokeLinecap="round"
+      <Polygon
+        points={`${leftBase.x},${leftBase.y} ${rightBase.x},${rightBase.y} ${needleEnd.x},${needleEnd.y}`}
+        fill={needleColor}
       />
+      <Circle cx={center.x} cy={center.y} r={7} fill={needleColor} />
       <SvgText
         x={center.x}
         y={center.y - 8}
