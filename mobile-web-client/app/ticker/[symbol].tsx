@@ -447,7 +447,6 @@ export default function TickerScreen() {
                   textColor={theme.text}
                   trackColor={theme.border}
                   needleColor={theme.text}
-                  gradientTo={theme.accent}
                 />
               </View>
               <Text style={[styles.recoveryScore, { color: theme.text }]}>

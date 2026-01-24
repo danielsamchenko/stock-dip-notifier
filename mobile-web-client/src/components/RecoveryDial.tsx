@@ -14,8 +14,6 @@ type RecoveryDialProps = {
   textColor?: string;
   trackColor?: string;
   needleColor?: string;
-  gradientFrom?: string;
-  gradientTo?: string;
 };
 
 export function RecoveryDial({
@@ -24,8 +22,6 @@ export function RecoveryDial({
   textColor = "#111827",
   trackColor = "rgba(148, 163, 184, 0.35)",
   needleColor = "#e2e8f0",
-  gradientFrom = "#7f1d1d",
-  gradientTo = "#86efac",
 }: RecoveryDialProps) {
   const clamped = clamp(score, 0, 100);
   const stroke = 10;
@@ -39,6 +35,7 @@ export function RecoveryDial({
 
   const trackPath = describeArcClockwise(center.x, center.y, radius, startAngle, endAngle);
   const valuePath = describeArcClockwise(center.x, center.y, radius, startAngle, valueAngle);
+  const gradientStops = buildGradientStops(clamped);
 
   const needleLength = radius - stroke * 0.4;
   const needleEnd = polarToCartesian(center.x, center.y, needleLength, valueAngle);
@@ -48,15 +45,6 @@ export function RecoveryDial({
 
   return (
     <Svg width={size} height={size * 0.75}>
-      <Defs>
-        <LinearGradient id="dial-gradient" x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0%" stopColor={gradientFrom} stopOpacity={0.9} />
-          <Stop offset="35%" stopColor="#f97316" stopOpacity={0.9} />
-          <Stop offset="65%" stopColor="#facc15" stopOpacity={0.9} />
-          <Stop offset="100%" stopColor={gradientTo} stopOpacity={0.9} />
-        </LinearGradient>
-      </Defs>
-
       <Path
         d={trackPath}
         stroke={trackColor}
@@ -64,6 +52,19 @@ export function RecoveryDial({
         strokeLinecap="round"
         fill="none"
       />
+      <Defs>
+        <LinearGradient id="dial-gradient" x1="0" y1="0" x2="1" y2="0">
+          {gradientStops.map((stop) => (
+            <Stop
+              key={`${stop.offset}-${stop.color}`}
+              offset={`${stop.offset * 100}%`}
+              stopColor={stop.color}
+              stopOpacity={0.95}
+            />
+          ))}
+        </LinearGradient>
+      </Defs>
+
       <Path
         d={valuePath}
         stroke="url(#dial-gradient)"
@@ -114,4 +115,71 @@ function polarToCartesian(x: number, y: number, radius: number, angleInDegrees: 
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+type ColorStop = { offset: number; color: string };
+
+const BASE_STOPS: ColorStop[] = [
+  { offset: 0, color: "#7f1d1d" },
+  { offset: 0.35, color: "#f97316" },
+  { offset: 0.65, color: "#facc15" },
+  { offset: 1, color: "#22c55e" },
+];
+
+function buildGradientStops(score: number): ColorStop[] {
+  const ratio = clamp(score, 0, 100) / 100;
+  if (ratio <= 0) {
+    return [
+      { offset: 0, color: BASE_STOPS[0].color },
+      { offset: 1, color: BASE_STOPS[0].color },
+    ];
+  }
+  if (ratio >= 1) {
+    return BASE_STOPS;
+  }
+
+  const stops: ColorStop[] = [];
+  for (const stop of BASE_STOPS) {
+    if (stop.offset <= ratio) {
+      stops.push({ offset: stop.offset / ratio, color: stop.color });
+    }
+  }
+  const endColor = interpolateColor(ratio);
+  stops.push({ offset: 1, color: endColor });
+  return stops;
+}
+
+function interpolateColor(position: number): string {
+  for (let i = 0; i < BASE_STOPS.length - 1; i += 1) {
+    const left = BASE_STOPS[i];
+    const right = BASE_STOPS[i + 1];
+    if (position >= left.offset && position <= right.offset) {
+      const t = (position - left.offset) / (right.offset - left.offset);
+      return mixHex(left.color, right.color, t);
+    }
+  }
+  return BASE_STOPS[BASE_STOPS.length - 1].color;
+}
+
+function mixHex(left: string, right: string, t: number): string {
+  const a = hexToRgb(left);
+  const b = hexToRgb(right);
+  if (!a || !b) {
+    return right;
+  }
+  const r = Math.round(a.r + (b.r - a.r) * t);
+  const g = Math.round(a.g + (b.g - a.g) * t);
+  const bVal = Math.round(a.b + (b.b - a.b) * t);
+  return `rgb(${r}, ${g}, ${bVal})`;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const cleaned = hex.replace("#", "");
+  if (cleaned.length !== 6) {
+    return null;
+  }
+  const r = parseInt(cleaned.slice(0, 2), 16);
+  const g = parseInt(cleaned.slice(2, 4), 16);
+  const b = parseInt(cleaned.slice(4, 6), 16);
+  return { r, g, b };
 }
