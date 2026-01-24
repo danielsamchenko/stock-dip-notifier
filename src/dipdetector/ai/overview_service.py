@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from dipdetector import config
 from dipdetector.ai.lambda_client import invoke_overview
 from dipdetector.db.models import AIOverview, DailyPrice, Ticker
+from dipdetector.providers.massive_news import fetch_ticker_news
 
 
 def get_overview(session: Session, symbol: str, asof: date | None) -> dict[str, Any]:
@@ -28,7 +29,12 @@ def get_overview(session: Session, symbol: str, asof: date | None) -> dict[str, 
         return cached.overview_json
 
     dip_context = _compute_dip_context(session, ticker.id, asof_date)
-    news_items: list[dict[str, Any]] = []
+    news_items = _fetch_news_items(normalized)
+
+    if not news_items:
+        result = _no_news_response(normalized, asof_date)
+        _upsert_overview(session, normalized, asof_date, result, model_id=None)
+        return result
 
     payload = {
         "symbol": normalized,
@@ -109,6 +115,19 @@ def _compute_dip_context(
     }
 
 
+def _fetch_news_items(symbol: str) -> list[dict[str, Any]]:
+    limit = config.get_massive_news_limit()
+    try:
+        return fetch_ticker_news(
+            symbol,
+            limit=limit,
+            base_url=config.get_massive_base_url(),
+            api_key=config.get_massive_api_key(),
+        )
+    except Exception:
+        return []
+
+
 
 
 def _normalize_result(raw: dict[str, Any], symbol: str, asof_date: date) -> dict[str, Any]:
@@ -123,14 +142,17 @@ def _normalize_result(raw: dict[str, Any], symbol: str, asof_date: date) -> dict
     key_factors = raw.get("key_factors") if isinstance(raw.get("key_factors"), list) else []
     sources = raw.get("sources") if isinstance(raw.get("sources"), list) else []
 
-    return {
-        "symbol": raw.get("symbol", symbol),
-        "asof": raw.get("asof", asof_date.isoformat()),
-        "overview": overview_text,
-        "drivers": drivers,
-        "key_factors": key_factors,
-        "sources": sources,
-    }
+    return _clean_result(
+        {
+            "symbol": raw.get("symbol", symbol),
+            "asof": raw.get("asof", asof_date.isoformat()),
+            "overview": overview_text,
+            "drivers": drivers,
+            "key_factors": key_factors,
+            "sources": sources,
+        },
+        asof_date,
+    )
 
 
 def _fallback_response(symbol: str, asof_date: date) -> dict[str, Any]:
@@ -142,6 +164,53 @@ def _fallback_response(symbol: str, asof_date: date) -> dict[str, Any]:
         "key_factors": [],
         "sources": [],
     }
+
+
+def _no_news_response(symbol: str, asof_date: date) -> dict[str, Any]:
+    return {
+        "symbol": symbol,
+        "asof": asof_date.isoformat(),
+        "overview": "No recent news found to explain the move.",
+        "drivers": None,
+        "key_factors": [],
+        "sources": [],
+    }
+
+
+def _clean_result(result: dict[str, Any], asof_date: date) -> dict[str, Any]:
+    overview_text = result.get("overview", "")
+    if isinstance(overview_text, str):
+        cleaned = _strip_banned_phrases(overview_text)
+        result["overview"] = cleaned if cleaned else "Overview unavailable right now."
+    else:
+        result["overview"] = "Overview unavailable right now."
+
+    if "asof" not in result:
+        result["asof"] = asof_date.isoformat()
+    if "key_factors" not in result or not isinstance(result["key_factors"], list):
+        result["key_factors"] = []
+    if "sources" not in result or not isinstance(result["sources"], list):
+        result["sources"] = []
+    return result
+
+
+def _strip_banned_phrases(text: str) -> str:
+    banned = [
+        "market conditions",
+        "limited news",
+        "limited news catalyst",
+        "macroeconomic uncertainty",
+    ]
+    sentences = [part.strip() for part in text.replace("\n", " ").split(".") if part.strip()]
+    kept: list[str] = []
+    for sentence in sentences:
+        lowered = sentence.lower()
+        if any(phrase in lowered for phrase in banned):
+            continue
+        kept.append(sentence)
+    if not kept:
+        return ""
+    return ". ".join(kept) + "."
 
 
 def _upsert_overview(

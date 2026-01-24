@@ -27,8 +27,25 @@ def get_massive_api_key() -> str:
 
 
 def get_massive_rest_base_url() -> str | None:
+    value = os.getenv("MASSIVE_BASE_URL", "").strip()
+    if value:
+        return value
     value = os.getenv("MASSIVE_REST_BASE_URL", "").strip()
-    return value or None
+    if value:
+        return value
+    return None
+
+
+def get_massive_base_url() -> str:
+    return (
+        os.getenv("MASSIVE_BASE_URL")
+        or os.getenv("MASSIVE_REST_BASE_URL")
+        or "https://api.polygon.io"
+    ).strip()
+
+
+def get_massive_news_limit() -> int:
+    return _get_int("MASSIVE_NEWS_LIMIT", 10)
 
 
 def get_massive_ws_url() -> str:
