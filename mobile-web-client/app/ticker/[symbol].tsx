@@ -17,6 +17,7 @@ import { router, useLocalSearchParams } from "expo-router";
 
 import { LineChart } from "../../src/components/LineChart";
 import { RecoveryDial } from "../../src/components/RecoveryDial";
+import { RecoveryTimeline } from "../../src/components/RecoveryTimeline";
 import { TernaryDriverPlot } from "../../src/components/TernaryDriverPlot";
 import {
   buildWsUrl,
@@ -397,7 +398,7 @@ export default function TickerScreen() {
             ]}
           >
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              What's Driving the Dip
+              What's Driving the Dip?
             </Text>
             <View style={styles.driversColumn}>
               <View
@@ -458,6 +459,8 @@ export default function TickerScreen() {
             </View>
           </View>
         </View>
+
+        <RecoveryTimeline symbol={symbol} theme={theme} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -774,6 +777,7 @@ const styles = StyleSheet.create({
   driversColumn: {
     alignItems: "center",
     gap: 12,
+    marginTop: 6,
   },
   driversPlotCard: {
     padding: 8,
@@ -787,6 +791,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.6,
     textAlign: "center",
+    marginTop: 12,
   },
   driversSummary: {
     fontSize: 13,
