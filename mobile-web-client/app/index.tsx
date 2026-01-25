@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
-import { getCurrentDips, refreshBackend } from "../src/lib/api";
+import { getCurrentDips, getTicker, refreshBackend } from "../src/lib/api";
 import { formatPercent } from "../src/lib/format";
 import { getLogoUrl } from "../src/lib/logos";
 import { getMockSignalsForSymbol } from "../src/lib/mockSignals";
@@ -31,6 +31,7 @@ export default function DipsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [companyNames, setCompanyNames] = useState<Record<string, string | null>>({});
   const theme = isDark ? darkTheme : lightTheme;
 
   const loadDips = useCallback(async () => {
@@ -56,6 +57,47 @@ export default function DipsScreen() {
     setLoading(true);
     loadDips();
   }, [loadDips]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const symbols = Array.from(
+      new Set(dips.map((dip) => dip.symbol).filter((symbol) => symbol)),
+    );
+    const missing = symbols.filter((symbol) => companyNames[symbol] === undefined);
+    if (!missing.length) {
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    Promise.allSettled(
+      missing.map(async (symbol) => {
+        try {
+          const data = await getTicker(symbol);
+          return { symbol, name: data.name?.trim() ?? null };
+        } catch {
+          return { symbol, name: null };
+        }
+      }),
+    ).then((results) => {
+      if (!isMounted) {
+        return;
+      }
+      setCompanyNames((prev) => {
+        const next = { ...prev };
+        for (const result of results) {
+          if (result.status === "fulfilled") {
+            next[result.value.symbol] = result.value.name;
+          }
+        }
+        return next;
+      });
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [companyNames, dips]);
 
   const refreshNow = useCallback(async () => {
     if (refreshing) {
@@ -174,8 +216,13 @@ export default function DipsScreen() {
           ListEmptyComponent={
             <Text style={[styles.helperText, { color: theme.muted }]}>No current dips.</Text>
           }
-          renderItem={({ item }) => (
-            <Pressable
+          renderItem={({ item }) => {
+            const companyName = companyNames[item.symbol];
+            const companyLabel =
+              companyName === undefined ? "Loading..." : companyName ?? "—";
+
+            return (
+              <Pressable
               style={({ pressed }) => [
                 styles.row,
                 { borderBottomColor: theme.border, opacity: pressed ? 0.6 : 1 },
@@ -197,6 +244,12 @@ export default function DipsScreen() {
                 <Logo symbol={item.symbol} theme={theme} />
                 <View style={styles.symbolBlock}>
                   <Text style={[styles.symbol, { color: theme.text }]}>{item.symbol}</Text>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.companyName, { color: theme.muted }]}
+                  >
+                    {companyLabel}
+                  </Text>
                 </View>
               </View>
               <View style={styles.rightGroup}>
@@ -218,7 +271,8 @@ export default function DipsScreen() {
                 </View>
               </View>
             </Pressable>
-          )}
+            );
+          }}
         />
       </View>
     </SafeAreaView>
@@ -375,6 +429,9 @@ const styles = StyleSheet.create({
   },
   symbolBlock: {
     marginLeft: 10,
+    flexShrink: 1,
+    paddingVertical: 2,
+    gap: 2,
   },
   logoContainer: {
     width: 30,
@@ -399,6 +456,9 @@ const styles = StyleSheet.create({
   symbol: {
     fontSize: 18,
     fontWeight: "600",
+  },
+  companyName: {
+    fontSize: 12,
   },
   rightGroup: {
     alignItems: "flex-end",
