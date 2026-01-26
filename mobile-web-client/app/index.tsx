@@ -173,13 +173,20 @@ export default function DipsScreen() {
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.headerRow}>
           <View style={styles.titleWrap}>
-            <Text
-              style={[styles.title, { color: theme.text }]}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              Stock Dips
-            </Text>
+            <View style={styles.titleRow}>
+              <Image
+                source={require("../assets/app-logo.png")}
+                style={styles.appLogo}
+                resizeMode="contain"
+              />
+              <Text
+                style={[styles.title, { color: theme.text }]}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                Stock Dips
+              </Text>
+            </View>
           </View>
           <Pressable
             style={[styles.toggleButton, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -413,6 +420,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "600",
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  appLogo: {
+    width: 28,
+    height: 28,
   },
   row: {
     flexDirection: "row",
