@@ -52,6 +52,7 @@ export default function TickerScreen() {
   const [overviewError, setOverviewError] = useState<string | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewReload, setOverviewReload] = useState(0);
+  const [showDriversHelp, setShowDriversHelp] = useState(false);
   const theme = isDark ? darkTheme : lightTheme;
 
   const symbol = parseStringParam(params.symbol) ?? "—";
@@ -397,9 +398,44 @@ export default function TickerScreen() {
               },
             ]}
           >
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              What's Driving the Dip?
-            </Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                What's Driving the Dip?
+              </Text>
+              <View style={styles.helpWrap}>
+                <Pressable
+                  onPress={() => setShowDriversHelp((prev) => !prev)}
+                  onHoverIn={() => setShowDriversHelp(true)}
+                  onHoverOut={() => setShowDriversHelp(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Explain the drivers triangle"
+                  style={styles.helpButton}
+                >
+                  <Ionicons name="help-circle-outline" size={18} color={theme.muted} />
+                </Pressable>
+                {showDriversHelp ? (
+                  <View
+                    style={[
+                      styles.helpTooltip,
+                      { backgroundColor: theme.background, borderColor: theme.border },
+                    ]}
+                  >
+                    <Text style={[styles.helpTitle, { color: theme.text }]}>
+                      Triangle guide
+                    </Text>
+                    <Text style={[styles.helpText, { color: theme.muted }]}>
+                      Market: broad macro and index-level pressure.
+                    </Text>
+                    <Text style={[styles.helpText, { color: theme.muted }]}>
+                      Industry: sector peers moving together.
+                    </Text>
+                    <Text style={[styles.helpText, { color: theme.muted }]}>
+                      Company: firm-specific news or fundamentals.
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
             <View style={styles.driversColumn}>
               <View
                 style={[
@@ -769,6 +805,36 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  helpWrap: {
+    position: "relative",
+    alignItems: "flex-end",
+  },
+  helpButton: {
+    padding: 4,
+  },
+  helpTooltip: {
+    position: "absolute",
+    top: 22,
+    right: 0,
+    width: 220,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 10,
+    gap: 6,
+  },
+  helpTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  helpText: {
+    fontSize: 11,
+    lineHeight: 14,
   },
   driversRow: {
     gap: 12,
