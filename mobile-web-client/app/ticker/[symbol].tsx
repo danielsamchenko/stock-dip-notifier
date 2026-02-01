@@ -411,7 +411,7 @@ export default function TickerScreen() {
                   accessibilityLabel="Explain the drivers triangle"
                   style={styles.helpButton}
                 >
-                  <Ionicons name="help-circle-outline" size={18} color={theme.muted} />
+                  <Ionicons name="help-circle-outline" size={22} color={theme.muted} />
                 </Pressable>
                 {showDriversHelp ? (
                   <View
@@ -421,16 +421,23 @@ export default function TickerScreen() {
                     ]}
                   >
                     <Text style={[styles.helpTitle, { color: theme.text }]}>
-                      Triangle guide
+                      What the triangle means
                     </Text>
                     <Text style={[styles.helpText, { color: theme.muted }]}>
-                      Market: broad macro and index-level pressure.
+                      This is a 3-way breakdown of what's likely behind the dip. The marker “leans”
+                      toward the dominant driver.
                     </Text>
                     <Text style={[styles.helpText, { color: theme.muted }]}>
-                      Industry: sector peers moving together.
+                      • <Text style={styles.helpStrong}>Market:</Text> index-level selling, rates,
+                      macro headlines
                     </Text>
                     <Text style={[styles.helpText, { color: theme.muted }]}>
-                      Company: firm-specific news or fundamentals.
+                      • <Text style={styles.helpStrong}>Industry:</Text> sector-wide moves, peer
+                      sympathy, thematic rotation
+                    </Text>
+                    <Text style={[styles.helpText, { color: theme.muted }]}>
+                      • <Text style={styles.helpStrong}>Company:</Text> earnings, guidance, news, or
+                      firm-specific fundamentals
                     </Text>
                   </View>
                 ) : null}
@@ -830,6 +837,9 @@ const styles = StyleSheet.create({
   },
   helpTitle: {
     fontSize: 12,
+    fontWeight: "700",
+  },
+  helpStrong: {
     fontWeight: "700",
   },
   helpText: {
