@@ -9,11 +9,9 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 import { getCurrentDips, getTicker, refreshBackend } from "../src/lib/api";
@@ -24,15 +22,13 @@ import { CurrentDipRow } from "../src/types";
 import { ValueTrapMeter } from "../src/components/ValueTrapMeter";
 
 export default function DipsScreen() {
-  const systemScheme = useColorScheme();
-  const [isDark, setIsDark] = useState<boolean>(systemScheme === "dark");
   const [dips, setDips] = useState<CurrentDipRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [companyNames, setCompanyNames] = useState<Record<string, string | null>>({});
-  const theme = isDark ? darkTheme : lightTheme;
+  const theme = darkTheme;
 
   const loadDips = useCallback(async () => {
     setError(null);
@@ -144,7 +140,7 @@ export default function DipsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+        <StatusBar barStyle="light-content" />
         <View style={[styles.centered, { backgroundColor: theme.background }]}>
           <ActivityIndicator size="large" color={theme.text} />
           <Text style={[styles.helperText, { color: theme.muted }]}>Loading dips...</Text>
@@ -156,7 +152,7 @@ export default function DipsScreen() {
   if (error) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+        <StatusBar barStyle="light-content" />
         <View style={[styles.centered, { backgroundColor: theme.background }]}>
           <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
           <Pressable style={[styles.retryButton, { backgroundColor: theme.accent }]} onPress={loadDips}>
@@ -169,7 +165,7 @@ export default function DipsScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      <StatusBar barStyle="light-content" />
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.headerRow}>
           <View style={styles.titleWrap}>
@@ -188,16 +184,6 @@ export default function DipsScreen() {
               </Text>
             </View>
           </View>
-          <Pressable
-            style={[styles.toggleButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-            onPress={() => setIsDark((prev) => !prev)}
-          >
-            <Ionicons
-              name={isDark ? "sunny-outline" : "moon-outline"}
-              size={18}
-              color={theme.text}
-            />
-          </Pressable>
         </View>
         <Pressable style={styles.updatedRow} onPress={refreshNow} disabled={refreshing}>
           <Text style={[styles.updatedText, { color: theme.muted }]}>
@@ -262,7 +248,7 @@ export default function DipsScreen() {
               <View style={styles.rightGroup}>
                 <View style={styles.meterRow}>
                   <View style={styles.meterWrapper}>
-                    <RowMeter symbol={item.symbol} isDark={isDark} />
+                    <RowMeter symbol={item.symbol} />
                     <Text style={[styles.meterLabel, { color: theme.mutedLight }]}>
                       Recovery Score
                     </Text>
@@ -309,31 +295,13 @@ type Theme = {
   error: string;
 };
 
-const lightTheme: Theme = {
-  background: "#ffffff",
-  card: "#ffffff",
-  text: "#111827",
-  muted: "#6b7280",
-  mutedLight: "#9ca3af",
-  border: "#e5e7eb",
-  accent: "#111827",
-  accentText: "#ffffff",
-  error: "#b91c1c",
-};
-
-function RowMeter({
-  symbol,
-  isDark,
-}: {
-  symbol: string;
-  isDark: boolean;
-}) {
+function RowMeter({ symbol }: { symbol: string }) {
   const signals = getMockSignalsForSymbol(symbol);
   return (
     <ValueTrapMeter
       score={signals.score}
-      plateColor={isDark ? "#111111" : "#f8fafc"}
-      trackColor={isDark ? "#2a2a2a" : "#e5e7eb"}
+      plateColor="#111111"
+      trackColor="#2a2a2a"
     />
   );
 }
@@ -521,13 +489,5 @@ const styles = StyleSheet.create({
   },
   retryText: {
     fontWeight: "600",
-  },
-  toggleButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

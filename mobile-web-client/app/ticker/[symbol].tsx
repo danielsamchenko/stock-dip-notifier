@@ -7,7 +7,6 @@ import {
   Text,
   Image,
   Linking,
-  useColorScheme,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -37,10 +36,8 @@ const DEFAULT_LOOKBACK_MINUTES = 390;
 
 export default function TickerScreen() {
   const params = useLocalSearchParams();
-  const systemScheme = useColorScheme();
   const { width } = useWindowDimensions();
   const isWide = width >= 820;
-  const [isDark, setIsDark] = useState<boolean>(systemScheme === "dark");
   const [selectedRange, setSelectedRange] = useState<(typeof TIME_RANGES)[number]>("DIP");
   const [detail, setDetail] = useState<TickerDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -53,7 +50,7 @@ export default function TickerScreen() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewReload, setOverviewReload] = useState(0);
   const [showDriversHelp, setShowDriversHelp] = useState(false);
-  const theme = isDark ? darkTheme : lightTheme;
+  const theme = darkTheme;
 
   const symbol = parseStringParam(params.symbol) ?? "—";
   const dipValue = parseNumber(params.dip);
@@ -207,6 +204,7 @@ export default function TickerScreen() {
     dipInfo && dipInfo.value >= 0 ? theme.positive : dipInfo ? theme.negative : theme.muted;
   const driverData = getMockDrivers(symbol);
   const recovery = getMockRecovery(symbol);
+  const driverAccent = "#60a5fa";
   const plotSize = isWide ? 200 : Math.min(260, width - 64);
   const cardWidth = isWide ? (width - 48) / 2 : width - 32;
   const dialBase = isWide ? 200 : Math.min(260, width - 64);
@@ -217,7 +215,7 @@ export default function TickerScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      <StatusBar barStyle="light-content" />
       <ScrollView
         contentContainerStyle={[styles.container, { backgroundColor: theme.background }]}
         showsVerticalScrollIndicator={false}
@@ -225,12 +223,6 @@ export default function TickerScreen() {
         <View style={styles.topRow}>
           <Pressable style={styles.backButton} onPress={() => router.replace("/")}>
             <Ionicons name="chevron-back" size={20} color={theme.text} />
-          </Pressable>
-          <Pressable
-            style={[styles.toggleButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-            onPress={() => setIsDark((prev) => !prev)}
-          >
-            <Ionicons name={isDark ? "sunny-outline" : "moon-outline"} size={18} color={theme.text} />
           </Pressable>
         </View>
 
@@ -459,7 +451,7 @@ export default function TickerScreen() {
                   company={driverData.company}
                   confidence={driverData.confidence}
                   size={plotSize}
-                  color={theme.accent}
+                  color={driverAccent}
                   textColor={theme.text}
                   borderColor={theme.border}
                   backgroundColor="transparent"
@@ -609,21 +601,6 @@ type Theme = {
   negative: string;
 };
 
-const lightTheme: Theme = {
-  background: "#ffffff",
-  card: "#ffffff",
-  plotField: "#f1f5f9",
-  text: "#111827",
-  muted: "#6b7280",
-  mutedLight: "#9ca3af",
-  border: "#e5e7eb",
-  accent: "#111827",
-  accentText: "#ffffff",
-  error: "#b91c1c",
-  positive: "#15803d",
-  negative: "#dc2626",
-};
-
 const darkTheme: Theme = {
   background: "#000000",
   card: "#0b0b0b",
@@ -656,14 +633,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 6,
-  },
-  toggleButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
   headerBlock: {
     marginBottom: 16,
