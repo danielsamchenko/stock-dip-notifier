@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -50,6 +50,9 @@ export default function TickerScreen() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewReload, setOverviewReload] = useState(0);
   const [showDriversHelp, setShowDriversHelp] = useState(false);
+  const [showRecoveryHelp, setShowRecoveryHelp] = useState(false);
+  const driversHelpHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recoveryHelpHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const theme = darkTheme;
 
   const symbol = parseStringParam(params.symbol) ?? "—";
@@ -212,6 +215,41 @@ export default function TickerScreen() {
   const overviewText = overview?.overview ?? "Overview unavailable right now.";
   const overviewFactors = overview?.key_factors ?? [];
   const overviewSources = overview?.sources ?? [];
+
+  const clearDriversHelpHideTimeout = () => {
+    if (driversHelpHideTimeoutRef.current) {
+      clearTimeout(driversHelpHideTimeoutRef.current);
+      driversHelpHideTimeoutRef.current = null;
+    }
+  };
+
+  const queueDriversHelpHide = () => {
+    clearDriversHelpHideTimeout();
+    driversHelpHideTimeoutRef.current = setTimeout(() => {
+      setShowDriversHelp(false);
+    }, 120);
+  };
+
+  const clearRecoveryHelpHideTimeout = () => {
+    if (recoveryHelpHideTimeoutRef.current) {
+      clearTimeout(recoveryHelpHideTimeoutRef.current);
+      recoveryHelpHideTimeoutRef.current = null;
+    }
+  };
+
+  const queueRecoveryHelpHide = () => {
+    clearRecoveryHelpHideTimeout();
+    recoveryHelpHideTimeoutRef.current = setTimeout(() => {
+      setShowRecoveryHelp(false);
+    }, 120);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearDriversHelpHideTimeout();
+      clearRecoveryHelpHideTimeout();
+    };
+  }, []);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -397,8 +435,11 @@ export default function TickerScreen() {
               <View style={styles.helpWrap}>
                 <Pressable
                   onPress={() => setShowDriversHelp((prev) => !prev)}
-                  onHoverIn={() => setShowDriversHelp(true)}
-                  onHoverOut={() => setShowDriversHelp(false)}
+                  onHoverIn={() => {
+                    clearDriversHelpHideTimeout();
+                    setShowDriversHelp(true);
+                  }}
+                  onHoverOut={queueDriversHelpHide}
                   accessibilityRole="button"
                   accessibilityLabel="Explain the drivers triangle"
                   style={styles.helpButton}
@@ -406,11 +447,16 @@ export default function TickerScreen() {
                   <Ionicons name="help-circle-outline" size={22} color={theme.muted} />
                 </Pressable>
                 {showDriversHelp ? (
-                  <View
+                  <Pressable
                     style={[
                       styles.helpTooltip,
                       { backgroundColor: theme.background, borderColor: theme.border },
                     ]}
+                    onHoverIn={() => {
+                      clearDriversHelpHideTimeout();
+                      setShowDriversHelp(true);
+                    }}
+                    onHoverOut={queueDriversHelpHide}
                   >
                     <Text style={[styles.helpTitle, { color: theme.text }]}>
                       What the triangle means
@@ -431,7 +477,7 @@ export default function TickerScreen() {
                       • <Text style={styles.helpStrong}>Company:</Text> earnings, guidance, news, or
                       firm-specific fundamentals
                     </Text>
-                  </View>
+                  </Pressable>
                 ) : null}
               </View>
             </View>
@@ -474,8 +520,53 @@ export default function TickerScreen() {
               },
             ]}
           >
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Recovery Outlook</Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>Recovery Outlook</Text>
+              <View style={styles.helpWrap}>
+                <Pressable
+                  onPress={() => setShowRecoveryHelp((prev) => !prev)}
+                  onHoverIn={() => {
+                    clearRecoveryHelpHideTimeout();
+                    setShowRecoveryHelp(true);
+                  }}
+                  onHoverOut={queueRecoveryHelpHide}
+                  accessibilityRole="button"
+                  accessibilityLabel="Explain recovery outlook"
+                  style={styles.helpButton}
+                >
+                  <Ionicons name="help-circle-outline" size={22} color={theme.muted} />
+                </Pressable>
+                {showRecoveryHelp ? (
+                  <Pressable
+                    style={[
+                      styles.helpTooltip,
+                      { backgroundColor: theme.background, borderColor: theme.border },
+                    ]}
+                    onHoverIn={() => {
+                      clearRecoveryHelpHideTimeout();
+                      setShowRecoveryHelp(true);
+                    }}
+                    onHoverOut={queueRecoveryHelpHide}
+                  >
+                    <Text style={[styles.helpTitle, { color: theme.text }]}>
+                      Recovery outlook
+                    </Text>
+                    <Text style={[styles.helpText, { color: theme.muted }]}>
+                      Recovery Outlook is a confidence score for rebound potential. It estimates
+                      how likely this stock is to recover back to its pre-dip stock price, not how
+                      quickly it might happen.
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
             <View style={styles.recoveryBody}>
+              <Text style={[styles.recoveryScore, { color: theme.text }]}>
+                Recovery Score: {recovery.score}/100
+              </Text>
+              <Text style={[styles.recoveryLabel, { color: theme.muted }]}>
+                {recovery.label}
+              </Text>
               <View style={styles.recoveryDialWrap}>
                 <RecoveryDial
                   score={recovery.score}
@@ -485,12 +576,6 @@ export default function TickerScreen() {
                   needleColor={theme.text}
                 />
               </View>
-              <Text style={[styles.recoveryScore, { color: theme.text }]}>
-                Recovery Score: {recovery.score}/100
-              </Text>
-              <Text style={[styles.recoveryLabel, { color: theme.muted }]}>
-                {recovery.label}
-              </Text>
             </View>
           </View>
         </View>
