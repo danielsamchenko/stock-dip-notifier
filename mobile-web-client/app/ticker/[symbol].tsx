@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -50,6 +50,7 @@ export default function TickerScreen() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewReload, setOverviewReload] = useState(0);
   const [showDriversHelp, setShowDriversHelp] = useState(false);
+  const driversHelpHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const theme = darkTheme;
 
   const symbol = parseStringParam(params.symbol) ?? "—";
@@ -212,6 +213,26 @@ export default function TickerScreen() {
   const overviewText = overview?.overview ?? "Overview unavailable right now.";
   const overviewFactors = overview?.key_factors ?? [];
   const overviewSources = overview?.sources ?? [];
+
+  const clearDriversHelpHideTimeout = () => {
+    if (driversHelpHideTimeoutRef.current) {
+      clearTimeout(driversHelpHideTimeoutRef.current);
+      driversHelpHideTimeoutRef.current = null;
+    }
+  };
+
+  const queueDriversHelpHide = () => {
+    clearDriversHelpHideTimeout();
+    driversHelpHideTimeoutRef.current = setTimeout(() => {
+      setShowDriversHelp(false);
+    }, 120);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearDriversHelpHideTimeout();
+    };
+  }, []);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -397,8 +418,11 @@ export default function TickerScreen() {
               <View style={styles.helpWrap}>
                 <Pressable
                   onPress={() => setShowDriversHelp((prev) => !prev)}
-                  onHoverIn={() => setShowDriversHelp(true)}
-                  onHoverOut={() => setShowDriversHelp(false)}
+                  onHoverIn={() => {
+                    clearDriversHelpHideTimeout();
+                    setShowDriversHelp(true);
+                  }}
+                  onHoverOut={queueDriversHelpHide}
                   accessibilityRole="button"
                   accessibilityLabel="Explain the drivers triangle"
                   style={styles.helpButton}
@@ -406,11 +430,16 @@ export default function TickerScreen() {
                   <Ionicons name="help-circle-outline" size={22} color={theme.muted} />
                 </Pressable>
                 {showDriversHelp ? (
-                  <View
+                  <Pressable
                     style={[
                       styles.helpTooltip,
                       { backgroundColor: theme.background, borderColor: theme.border },
                     ]}
+                    onHoverIn={() => {
+                      clearDriversHelpHideTimeout();
+                      setShowDriversHelp(true);
+                    }}
+                    onHoverOut={queueDriversHelpHide}
                   >
                     <Text style={[styles.helpTitle, { color: theme.text }]}>
                       What the triangle means
@@ -431,7 +460,7 @@ export default function TickerScreen() {
                       • <Text style={styles.helpStrong}>Company:</Text> earnings, guidance, news, or
                       firm-specific fundamentals
                     </Text>
-                  </View>
+                  </Pressable>
                 ) : null}
               </View>
             </View>
