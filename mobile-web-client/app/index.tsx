@@ -184,6 +184,14 @@ export default function DipsScreen() {
               </Text>
             </View>
           </View>
+          <Pressable
+            style={[styles.notificationsButton, { borderColor: theme.border, backgroundColor: theme.card }]}
+            onPress={() => router.push("/notifications")}
+          >
+            <Text style={[styles.notificationsButtonText, { color: theme.text }]}>
+              Notifications
+            </Text>
+          </Pressable>
         </View>
         <Pressable style={styles.updatedRow} onPress={refreshNow} disabled={refreshing}>
           <Text style={[styles.updatedText, { color: theme.muted }]}>
@@ -374,6 +382,16 @@ const styles = StyleSheet.create({
   titleWrap: {
     flex: 1,
     paddingRight: 12,
+  },
+  notificationsButton: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  notificationsButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   updatedRow: {
     marginBottom: 12,

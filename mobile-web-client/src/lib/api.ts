@@ -165,7 +165,7 @@ export async function getIntradayChart(
 export async function getDailyChart(
   symbol: string,
   lookbackDays: number,
-  timespan: "hour" | "day" = "day",
+  timespan: "minute" | "hour" | "day" = "day",
   multiplier = 1,
 ): Promise<IntradayChartResponse> {
   const params = `?lookback_days=${lookbackDays}&timespan=${timespan}&multiplier=${multiplier}`;

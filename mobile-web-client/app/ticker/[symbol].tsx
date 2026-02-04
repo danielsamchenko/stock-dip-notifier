@@ -63,6 +63,7 @@ export default function TickerScreen() {
   const changeLabel = getChangeLabel(selectedRange);
   const dailyLookbackDays = getDailyLookbackDays(selectedRange, dipWindowDays);
   const dailyTimespan = getDailyTimespan(selectedRange);
+  const dailyMultiplier = getDailyMultiplier(selectedRange);
   const chartLabelMode = getChartLabelMode(selectedRange);
 
   useEffect(() => {
@@ -100,7 +101,7 @@ export default function TickerScreen() {
     const promise =
       selectedRange === "1D"
         ? getIntradayChart(symbol, DEFAULT_LOOKBACK_MINUTES)
-        : getDailyChart(symbol, dailyLookbackDays, dailyTimespan);
+        : getDailyChart(symbol, dailyLookbackDays, dailyTimespan, dailyMultiplier);
 
     promise
       .then((data) => {
@@ -124,7 +125,7 @@ export default function TickerScreen() {
     return () => {
       isMounted = false;
     };
-  }, [symbol, selectedRange, chartReload, dailyLookbackDays, dailyTimespan]);
+  }, [symbol, selectedRange, chartReload, dailyLookbackDays, dailyTimespan, dailyMultiplier]);
 
   useEffect(() => {
     if (!symbol || symbol === "—" || selectedRange !== "1D") {
@@ -1074,15 +1075,25 @@ function getDailyLookbackDays(
   }
 }
 
-function getDailyTimespan(range: (typeof TIME_RANGES)[number]): "hour" | "day" {
+function getDailyTimespan(range: (typeof TIME_RANGES)[number]): "minute" | "hour" | "day" {
   switch (range) {
     case "DIP":
-      return "hour";
+      return "minute";
     case "1W":
+      return "minute";
     case "1M":
       return "hour";
     default:
       return "day";
+  }
+}
+
+function getDailyMultiplier(range: (typeof TIME_RANGES)[number]): number {
+  switch (range) {
+    case "1W":
+      return 5;
+    default:
+      return 1;
   }
 }
 
