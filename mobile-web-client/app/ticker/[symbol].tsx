@@ -5,8 +5,10 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   Image,
   Linking,
+  Platform,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -51,6 +53,7 @@ export default function TickerScreen() {
   const [overviewReload, setOverviewReload] = useState(0);
   const [showDriversHelp, setShowDriversHelp] = useState(false);
   const [showRecoveryHelp, setShowRecoveryHelp] = useState(false);
+  const [comment, setComment] = useState("");
   const driversHelpHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recoveryHelpHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const theme = darkTheme;
@@ -582,6 +585,27 @@ export default function TickerScreen() {
         </View>
 
         <RecoveryTimeline symbol={symbol} theme={theme} />
+
+        <View style={[styles.commentCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <TextInput
+            value={comment}
+            onChangeText={setComment}
+            placeholder="Add comment…"
+            placeholderTextColor={theme.muted}
+            selectionColor={theme.muted}
+            style={[styles.commentInput, { color: theme.text }]}
+          />
+          <Pressable
+            style={[
+              styles.commentButton,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Post comment"
+          >
+            <Text style={[styles.commentButtonText, { color: theme.muted }]}>Comment</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -972,6 +996,39 @@ const styles = StyleSheet.create({
   },
   articleMeta: {
     fontSize: 12,
+  },
+  commentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 24,
+  },
+  commentInput: {
+    flex: 1,
+    fontSize: 13,
+    paddingVertical: 6,
+    ...(Platform.OS === "web"
+      ? {
+          outlineStyle: "none",
+          outlineWidth: 0,
+        }
+      : {}),
+  },
+  commentButton: {
+    paddingHorizontal: 10,
+    height: 34,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  commentButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
 });
 
