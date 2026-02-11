@@ -28,6 +28,7 @@ export default function DipsScreen() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [companyNames, setCompanyNames] = useState<Record<string, string | null>>({});
+  const [accountOpen, setAccountOpen] = useState(false);
   const theme = darkTheme;
 
   const loadDips = useCallback(async () => {
@@ -184,14 +185,59 @@ export default function DipsScreen() {
               </Text>
             </View>
           </View>
-          <Pressable
-            style={[styles.notificationsButton, { borderColor: theme.border, backgroundColor: theme.card }]}
-            onPress={() => router.push("/notifications")}
-          >
-            <Text style={[styles.notificationsButtonText, { color: theme.text }]}>
-              Notifications
-            </Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              style={[
+                styles.notificationsButton,
+                { borderColor: theme.border, backgroundColor: theme.card },
+              ]}
+              onPress={() => router.push("/notifications")}
+            >
+              <Text style={[styles.notificationsButtonText, { color: theme.text }]}>
+                Notifications
+              </Text>
+            </Pressable>
+            <View style={styles.accountWrap}>
+              <Pressable
+                style={[
+                  styles.accountButton,
+                  { borderColor: theme.border, backgroundColor: theme.card },
+                ]}
+                onPress={() => setAccountOpen((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel="Account menu"
+              >
+                <Text style={[styles.accountInitials, { color: theme.text }]}>
+                  {DUMMY_USER.initials}
+                </Text>
+              </Pressable>
+              {accountOpen ? (
+                <View
+                  style={[
+                    styles.accountMenu,
+                    { backgroundColor: theme.card, borderColor: theme.border },
+                  ]}
+                >
+                  <Text style={[styles.accountName, { color: theme.text }]}>
+                    {DUMMY_USER.name}
+                  </Text>
+                  <Text style={[styles.accountEmail, { color: theme.muted }]}>
+                    {DUMMY_USER.email}
+                  </Text>
+                  <View style={[styles.accountDivider, { backgroundColor: theme.border }]} />
+                  <Pressable
+                    style={[
+                      styles.signOutButton,
+                      { borderColor: theme.border, backgroundColor: theme.background },
+                    ]}
+                    onPress={() => setAccountOpen(false)}
+                  >
+                    <Text style={[styles.signOutText, { color: theme.text }]}>Sign out</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+          </View>
         </View>
         <Pressable style={styles.updatedRow} onPress={refreshNow} disabled={refreshing}>
           <Text style={[styles.updatedText, { color: theme.muted }]}>
@@ -326,6 +372,12 @@ const darkTheme: Theme = {
   error: "#f87171",
 };
 
+const DUMMY_USER = {
+  name: "Daniel Samchenko",
+  email: "daniel.samchenko@example.com",
+  initials: "DS",
+};
+
 function Logo({ symbol, theme }: { symbol: string; theme: Theme }) {
   const [failed, setFailed] = useState(false);
   const letter = symbol ? symbol[0] : "?";
@@ -378,10 +430,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 4,
+    position: "relative",
+    zIndex: 5,
   },
   titleWrap: {
     flex: 1,
     paddingRight: 12,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    zIndex: 6,
   },
   notificationsButton: {
     borderWidth: 1,
@@ -390,6 +450,62 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   notificationsButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  accountWrap: {
+    position: "relative",
+    zIndex: 7,
+  },
+  accountButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  accountInitials: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  accountMenu: {
+    position: "absolute",
+    right: 0,
+    top: 40,
+    width: 200,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    zIndex: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  accountName: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  accountEmail: {
+    fontSize: 12,
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  accountDivider: {
+    height: 1,
+    width: "100%",
+    marginBottom: 10,
+  },
+  signOutButton: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  signOutText: {
     fontSize: 12,
     fontWeight: "600",
   },
