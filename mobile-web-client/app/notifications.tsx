@@ -93,7 +93,9 @@ function ThresholdSlider({
   onChange: (next: number) => void;
 }) {
   const [trackWidth, setTrackWidth] = useState(0);
-  const percent = ((value - min) / (max - min)) * 100;
+  const [dragValue, setDragValue] = useState<number | null>(null);
+  const displayValue = dragValue ?? value;
+  const percent = ((displayValue - min) / (max - min)) * 100;
 
   const updateFromX = (event: GestureResponderEvent) => {
     if (disabled || trackWidth <= 0) {
@@ -101,8 +103,18 @@ function ThresholdSlider({
     }
     const x = clamp(event.nativeEvent.locationX, 0, trackWidth);
     const raw = min + (x / trackWidth) * (max - min);
+    const next = clamp(raw, min, max);
+    setDragValue(next);
+  };
+
+  const commitValue = () => {
+    if (disabled) {
+      return;
+    }
+    const raw = dragValue ?? value;
     const stepped = Math.round(raw / step) * step;
     const next = clamp(stepped, min, max);
+    setDragValue(null);
     onChange(next);
   };
 
@@ -115,13 +127,17 @@ function ThresholdSlider({
         onMoveShouldSetResponder={() => !disabled}
         onResponderGrant={updateFromX}
         onResponderMove={updateFromX}
+        onResponderRelease={commitValue}
+        onResponderTerminate={commitValue}
       >
         <View style={[styles.trackFill, { width: `${percent}%` }]} />
         <View style={[styles.thumb, { left: `${percent}%` }]} />
       </View>
       <View style={styles.sliderLabels}>
         <Text style={styles.sliderLabel}>{min}%</Text>
-        <Text style={[styles.sliderValue, disabled && styles.sliderValueDisabled]}>{value}%</Text>
+        <Text style={[styles.sliderValue, disabled && styles.sliderValueDisabled]}>
+          {Math.round(displayValue)}%
+        </Text>
         <Text style={styles.sliderLabel}>{max}%</Text>
       </View>
     </View>
