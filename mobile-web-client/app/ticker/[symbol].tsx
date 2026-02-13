@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -7,7 +7,6 @@ import {
   Text,
   TextInput,
   Image,
-  Linking,
   Platform,
   useWindowDimensions,
   View,
@@ -16,10 +15,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { LineChart } from "../../src/components/LineChart";
-import { RecoveryDial } from "../../src/components/RecoveryDial";
 import { RecoveryTimeline } from "../../src/components/RecoveryTimeline";
-import { TernaryDriverPlot } from "../../src/components/TernaryDriverPlot";
+import { ChartCard } from "./components/ChartCard";
+import { DriversCard } from "./components/DriversCard";
+import { OverviewCard } from "./components/OverviewCard";
+import { RecoveryCard } from "./components/RecoveryCard";
+import { Theme } from "./components/theme";
 import {
   buildWsUrl,
   getDailyChart,
@@ -51,11 +52,7 @@ export default function TickerScreen() {
   const [overviewError, setOverviewError] = useState<string | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewReload, setOverviewReload] = useState(0);
-  const [showDriversHelp, setShowDriversHelp] = useState(false);
-  const [showRecoveryHelp, setShowRecoveryHelp] = useState(false);
   const [comment, setComment] = useState("");
-  const driversHelpHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recoveryHelpHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const theme = darkTheme;
 
   const symbol = parseStringParam(params.symbol) ?? "—";
@@ -198,7 +195,6 @@ export default function TickerScreen() {
   const lastBar = chartBars.length ? chartBars[chartBars.length - 1] : null;
   const firstBar = chartBars.length ? chartBars[0] : null;
   const changeInfo = buildChangeInfo(firstBar?.c, lastBar?.c, changeLabel);
-  const changeColor = changeInfo && changeInfo.delta < 0 ? theme.negative : theme.positive;
   const chartStroke = changeInfo && changeInfo.delta < 0 ? theme.negative : theme.accent;
   const chartFill =
     changeInfo && changeInfo.delta < 0
@@ -211,49 +207,10 @@ export default function TickerScreen() {
     dipInfo && dipInfo.value >= 0 ? theme.positive : dipInfo ? theme.negative : theme.muted;
   const driverData = getMockDrivers(symbol);
   const recovery = getMockRecovery(symbol);
-  const driverAccent = "#60a5fa";
   const plotSize = isWide ? 200 : Math.min(260, width - 64);
   const cardWidth = isWide ? (width - 48) / 2 : width - 32;
   const dialBase = isWide ? 200 : Math.min(260, width - 64);
   const dialSize = Math.min(dialBase * 2, cardWidth - 32);
-  const overviewText = overview?.overview ?? "Overview unavailable right now.";
-  const overviewFactors = overview?.key_factors ?? [];
-  const overviewSources = overview?.sources ?? [];
-
-  const clearDriversHelpHideTimeout = () => {
-    if (driversHelpHideTimeoutRef.current) {
-      clearTimeout(driversHelpHideTimeoutRef.current);
-      driversHelpHideTimeoutRef.current = null;
-    }
-  };
-
-  const queueDriversHelpHide = () => {
-    clearDriversHelpHideTimeout();
-    driversHelpHideTimeoutRef.current = setTimeout(() => {
-      setShowDriversHelp(false);
-    }, 120);
-  };
-
-  const clearRecoveryHelpHideTimeout = () => {
-    if (recoveryHelpHideTimeoutRef.current) {
-      clearTimeout(recoveryHelpHideTimeoutRef.current);
-      recoveryHelpHideTimeoutRef.current = null;
-    }
-  };
-
-  const queueRecoveryHelpHide = () => {
-    clearRecoveryHelpHideTimeout();
-    recoveryHelpHideTimeoutRef.current = setTimeout(() => {
-      setShowRecoveryHelp(false);
-    }, 120);
-  };
-
-  useEffect(() => {
-    return () => {
-      clearDriversHelpHideTimeout();
-      clearRecoveryHelpHideTimeout();
-    };
-  }, []);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -316,272 +273,41 @@ export default function TickerScreen() {
           })}
         </View>
 
-        <View style={[styles.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <View style={styles.chartContent}>
-            <View style={styles.priceRow}>
-              <View style={styles.priceLeft}>
-                {lastBar ? (
-                  <>
-                    <Text style={[styles.priceText, { color: theme.text }]}>
-                      {lastBar.c.toFixed(2)}
-                    </Text>
-                    <Text style={[styles.currencyText, { color: theme.muted }]}>
-                      {currency}
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={[styles.priceText, { color: theme.text }]}>—</Text>
-                )}
-              </View>
-              {changeInfo ? (
-                <Text style={[styles.changeText, { color: changeColor }]}>
-                  {changeInfo.text}
-                </Text>
-              ) : null}
-            </View>
-            {chartError ? (
-              <View style={styles.chartPlaceholder}>
-                <Text style={[styles.chartSubtitle, { color: theme.error }]}>{chartError}</Text>
-                <Pressable
-                  style={[styles.retryButton, { borderColor: theme.border }]}
-                  onPress={() => setChartReload((prev) => prev + 1)}
-                >
-                  <Text style={[styles.retryText, { color: theme.text }]}>Retry</Text>
-                </Pressable>
-              </View>
-            ) : chartLoading ? (
-              <Text style={[styles.chartSubtitle, { color: theme.muted }]}>Loading chart…</Text>
-            ) : (
-              <LineChart
-                data={chartBars.map((bar) => ({ t: bar.t, c: bar.c }))}
-                stroke={chartStroke}
-                textColor={theme.text}
-                fillColor={chartFill}
-                labelMode={chartLabelMode}
-              />
-            )}
-          </View>
-        </View>
+        <ChartCard
+          theme={theme}
+          currency={currency}
+          lastBar={lastBar}
+          changeInfo={changeInfo}
+          chartBars={chartBars}
+          chartError={chartError}
+          chartLoading={chartLoading}
+          chartLabelMode={chartLabelMode}
+          chartStroke={chartStroke}
+          chartFill={chartFill}
+          onRetry={() => setChartReload((prev) => prev + 1)}
+        />
 
-        <View style={[styles.overviewCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Overview</Text>
-          {overviewLoading ? (
-            <Text style={[styles.chartSubtitle, { color: theme.muted }]}>Loading overview…</Text>
-          ) : overviewError ? (
-            <View style={styles.chartPlaceholder}>
-              <Text style={[styles.chartSubtitle, { color: theme.error }]}>Overview unavailable</Text>
-              <Pressable
-                style={[styles.retryButton, { borderColor: theme.border }]}
-                onPress={() => setOverviewReload((prev) => prev + 1)}
-              >
-                <Text style={[styles.retryText, { color: theme.text }]}>Retry</Text>
-              </Pressable>
-            </View>
-          ) : overview ? (
-            <>
-              <Text style={[styles.overviewText, { color: theme.text }]}>{overviewText}</Text>
-              {overviewFactors.length ? (
-                <View style={styles.factorList}>
-                  {overviewFactors.map((factor, index) => (
-                    <Text
-                      key={`${factor}-${index}`}
-                      style={[styles.factorItem, { color: theme.text }]}
-                    >
-                      • {factor}
-                    </Text>
-                  ))}
-                </View>
-              ) : null}
-              {overviewSources.length ? (
-                <View style={styles.articleList}>
-                  {overviewSources.map((source, index) => (
-                    <Pressable
-                      key={`${source.url ?? source.title ?? index}`}
-                      style={styles.articleRow}
-                      onPress={() => source.url && Linking.openURL(source.url)}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        style={[styles.articleTitle, { color: theme.text }]}
-                      >
-                        {source.title ?? "Source"}
-                      </Text>
-                      <Text style={[styles.articleMeta, { color: theme.muted }]}>
-                        {formatArticleMeta(source.publisher, source.published_utc)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <Text style={[styles.chartSubtitle, { color: theme.muted }]}>
-              Overview unavailable right now.
-            </Text>
-          )}
-        </View>
+        <OverviewCard
+          theme={theme}
+          overview={overview}
+          loading={overviewLoading}
+          error={overviewError}
+          onRetry={() => setOverviewReload((prev) => prev + 1)}
+        />
 
         <View style={[styles.dualRow, { flexDirection: isWide ? "row" : "column" }]}>
-          <View
-            style={[
-              styles.dualCard,
-              {
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-                flex: isWide ? 1 : undefined,
-              },
-            ]}
-          >
-            <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                What's Driving the Dip?
-              </Text>
-              <View style={styles.helpWrap}>
-                <Pressable
-                  onPress={() => setShowDriversHelp((prev) => !prev)}
-                  onHoverIn={() => {
-                    clearDriversHelpHideTimeout();
-                    setShowDriversHelp(true);
-                  }}
-                  onHoverOut={queueDriversHelpHide}
-                  accessibilityRole="button"
-                  accessibilityLabel="Explain the drivers triangle"
-                  style={styles.helpButton}
-                >
-                  <Ionicons name="help-circle-outline" size={22} color={theme.muted} />
-                </Pressable>
-                {showDriversHelp ? (
-                  <Pressable
-                    style={[
-                      styles.helpTooltip,
-                      { backgroundColor: theme.background, borderColor: theme.border },
-                    ]}
-                    onHoverIn={() => {
-                      clearDriversHelpHideTimeout();
-                      setShowDriversHelp(true);
-                    }}
-                    onHoverOut={queueDriversHelpHide}
-                  >
-                    <Text style={[styles.helpTitle, { color: theme.text }]}>
-                      What the triangle means
-                    </Text>
-                    <Text style={[styles.helpText, { color: theme.muted }]}>
-                      This is a 3-way breakdown of what's likely behind the dip. The marker “leans”
-                      toward the dominant driver.
-                    </Text>
-                    <Text style={[styles.helpText, { color: theme.muted }]}>
-                      • <Text style={styles.helpStrong}>Market:</Text> index-level selling, rates,
-                      macro headlines
-                    </Text>
-                    <Text style={[styles.helpText, { color: theme.muted }]}>
-                      • <Text style={styles.helpStrong}>Industry:</Text> sector-wide moves, peer
-                      sympathy, thematic rotation
-                    </Text>
-                    <Text style={[styles.helpText, { color: theme.muted }]}>
-                      • <Text style={styles.helpStrong}>Company:</Text> earnings, guidance, news, or
-                      firm-specific fundamentals
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-            <View style={styles.driversColumn}>
-              <View
-                style={[
-                  styles.driversPlotCard,
-                  {
-                    borderColor: theme.border,
-                    alignSelf: "stretch",
-                  },
-                ]}
-              >
-                <TernaryDriverPlot
-                  market={driverData.market}
-                  industry={driverData.industry}
-                  company={driverData.company}
-                  confidence={driverData.confidence}
-                  size={plotSize}
-                  color={driverAccent}
-                  textColor={theme.text}
-                  borderColor={theme.border}
-                  backgroundColor="transparent"
-                />
-              </View>
-              <Text style={[styles.driversLabel, { color: theme.muted }]}>Driver Summary</Text>
-              <Text style={[styles.driversSummary, { color: theme.text }]}>
-                {driverData.summary}
-              </Text>
-            </View>
-          </View>
-
-          <View
-            style={[
-              styles.dualCard,
-              {
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-                flex: isWide ? 1 : undefined,
-              },
-            ]}
-          >
-            <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Recovery Outlook</Text>
-              <View style={styles.helpWrap}>
-                <Pressable
-                  onPress={() => setShowRecoveryHelp((prev) => !prev)}
-                  onHoverIn={() => {
-                    clearRecoveryHelpHideTimeout();
-                    setShowRecoveryHelp(true);
-                  }}
-                  onHoverOut={queueRecoveryHelpHide}
-                  accessibilityRole="button"
-                  accessibilityLabel="Explain recovery outlook"
-                  style={styles.helpButton}
-                >
-                  <Ionicons name="help-circle-outline" size={22} color={theme.muted} />
-                </Pressable>
-                {showRecoveryHelp ? (
-                  <Pressable
-                    style={[
-                      styles.helpTooltip,
-                      { backgroundColor: theme.background, borderColor: theme.border },
-                    ]}
-                    onHoverIn={() => {
-                      clearRecoveryHelpHideTimeout();
-                      setShowRecoveryHelp(true);
-                    }}
-                    onHoverOut={queueRecoveryHelpHide}
-                  >
-                    <Text style={[styles.helpTitle, { color: theme.text }]}>
-                      Recovery outlook
-                    </Text>
-                    <Text style={[styles.helpText, { color: theme.muted }]}>
-                      Recovery Outlook is a confidence score for rebound potential. It estimates
-                      how likely this stock is to recover back to its pre-dip stock price, not how
-                      quickly it might happen.
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            </View>
-            <View style={styles.recoveryBody}>
-              <Text style={[styles.recoveryScore, { color: theme.text }]}>
-                Recovery Score: {recovery.score}/100
-              </Text>
-              <Text style={[styles.recoveryLabel, { color: theme.muted }]}>
-                {recovery.label}
-              </Text>
-              <View style={styles.recoveryDialWrap}>
-                <RecoveryDial
-                  score={recovery.score}
-                  size={dialSize}
-                  textColor={theme.text}
-                  trackColor={theme.border}
-                  needleColor={theme.text}
-                />
-              </View>
-            </View>
-          </View>
+          <DriversCard
+            theme={theme}
+            driverData={driverData}
+            plotSize={plotSize}
+            style={isWide ? styles.dualCardFlex : undefined}
+          />
+          <RecoveryCard
+            theme={theme}
+            recovery={recovery}
+            dialSize={dialSize}
+            style={isWide ? styles.dualCardFlex : undefined}
+          />
         </View>
 
         <RecoveryTimeline symbol={symbol} theme={theme} />
@@ -696,21 +422,6 @@ function Logo({ symbol, theme }: { symbol: string; theme: Theme }) {
   );
 }
 
-type Theme = {
-  background: string;
-  card: string;
-  plotField: string;
-  text: string;
-  muted: string;
-  mutedLight: string;
-  border: string;
-  accent: string;
-  accentText: string;
-  error: string;
-  positive: string;
-  negative: string;
-};
-
 const darkTheme: Theme = {
   background: "#000000",
   card: "#0b0b0b",
@@ -819,183 +530,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  chartCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 24,
-  },
-  chartContent: {
-    gap: 12,
-  },
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "flex-start",
-    gap: 10,
-  },
-  priceLeft: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 6,
-  },
-  priceText: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  currencyText: {
-    fontSize: 12,
-    fontWeight: "400",
-  },
-  changeText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  chartSubtitle: {
-    fontSize: 12,
-    textAlign: "center",
-  },
-  chartPlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 24,
-  },
-  retryButton: {
-    marginTop: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  retryText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  overviewCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 24,
-    gap: 12,
-  },
   dualRow: {
     gap: 16,
     marginBottom: 24,
   },
-  dualCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  sectionHeaderRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-  helpWrap: {
-    position: "relative",
-    alignItems: "flex-end",
-  },
-  helpButton: {
-    padding: 4,
-  },
-  helpTooltip: {
-    position: "absolute",
-    top: 22,
-    right: 0,
-    width: 220,
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 10,
-    gap: 6,
-  },
-  helpTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  helpStrong: {
-    fontWeight: "700",
-  },
-  helpText: {
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  driversRow: {
-    gap: 12,
-    alignItems: "center",
-  },
-  driversColumn: {
-    alignItems: "center",
-    gap: 12,
-    marginTop: 6,
-  },
-  driversPlotCard: {
-    padding: 8,
-    borderRadius: 12,
-    alignItems: "center",
-    paddingTop: 2,
-  },
-  driversLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    textAlign: "center",
-    marginTop: 12,
-  },
-  driversSummary: {
-    fontSize: 13,
-    lineHeight: 18,
-    textAlign: "center",
-  },
-  recoveryBody: {
-    alignItems: "center",
-    gap: 10,
+  dualCardFlex: {
     flex: 1,
-    justifyContent: "flex-start",
-    marginTop: -18,
-  },
-  recoveryDialWrap: {
-    marginTop: -64,
-  },
-  recoveryScore: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  recoveryLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  overviewText: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  factorList: {
-    gap: 6,
-  },
-  factorItem: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  articleList: {
-    gap: 10,
-  },
-  articleRow: {
-    gap: 2,
-  },
-  articleTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  articleMeta: {
-    fontSize: 12,
   },
   commentCard: {
     flexDirection: "row",
@@ -1061,38 +601,6 @@ function formatDipParts(
     daysText: `(${roundedDays}d)`,
     value,
   };
-}
-
-function formatArticleMeta(publisher: string | null, publishedUtc: string | null): string {
-  const parts: string[] = [];
-  if (publisher) {
-    parts.push(publisher);
-  }
-  if (publishedUtc) {
-    const label = formatRelativeTime(publishedUtc);
-    if (label) {
-      parts.push(label);
-    }
-  }
-  return parts.join(" • ");
-}
-
-function formatRelativeTime(value: string): string | null {
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
-    return null;
-  }
-  const diffMs = Date.now() - parsed;
-  const minutes = Math.round(diffMs / 60000);
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
 }
 
 function getChangeLabel(range: (typeof TIME_RANGES)[number]): string {
