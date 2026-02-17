@@ -14,6 +14,7 @@ from dipdetector.realtime.massive_ws import MassiveWSFanout, get_fanout
 
 router = APIRouter(tags=["chart"])
 _fanout: MassiveWSFanout | None = None
+_INTRADAY_FALLBACK_DAYS = 10
 
 
 def _get_provider() -> MassiveProvider:
@@ -41,6 +42,15 @@ def get_intraday_chart(
     provider = _get_provider()
     try:
         bars = provider.fetch_intraday_bars(symbol, lookback, timespan, multiplier)
+        if not bars:
+            bars = _find_previous_session_bars(
+                provider,
+                symbol,
+                lookback,
+                timespan,
+                multiplier,
+                _INTRADAY_FALLBACK_DAYS,
+            )
     except Exception as exc:
         raise HTTPException(status_code=502, detail="Failed to fetch intraday bars") from exc
 
@@ -124,3 +134,55 @@ def _previous_weekday(value: datetime.date) -> datetime.date:
     while value.weekday() >= 5:
         value -= timedelta(days=1)
     return value
+
+
+def _find_previous_session_bars(
+    provider: MassiveProvider,
+    symbol: str,
+    lookback_minutes: int,
+    timespan: str,
+    multiplier: int,
+    max_days: int,
+) -> list[dict[str, float | int]]:
+    if max_days <= 0:
+        return []
+    eastern = ZoneInfo("America/New_York")
+    candidate_date = datetime.now(timezone.utc).astimezone(eastern).date()
+
+    for _ in range(max_days):
+        candidate_date = _previous_weekday(candidate_date - timedelta(days=1))
+        bars = _fetch_session_bars(
+            provider,
+            symbol,
+            candidate_date,
+            lookback_minutes,
+            timespan,
+            multiplier,
+        )
+        if bars:
+            return bars
+
+    return []
+
+
+def _fetch_session_bars(
+    provider: MassiveProvider,
+    symbol: str,
+    session_date: datetime.date,
+    lookback_minutes: int,
+    timespan: str,
+    multiplier: int,
+) -> list[dict[str, float | int]]:
+    eastern = ZoneInfo("America/New_York")
+    session_start = datetime.combine(session_date, time_of_day(9, 30), tzinfo=eastern)
+    session_end = datetime.combine(session_date, time_of_day(16, 0), tzinfo=eastern)
+    start_dt = session_end - timedelta(minutes=lookback_minutes)
+    if start_dt < session_start:
+        start_dt = session_start
+    return provider.fetch_aggregate_bars(
+        symbol,
+        start_dt=start_dt,
+        end_dt=session_end,
+        timespan=timespan,
+        multiplier=multiplier,
+    )
