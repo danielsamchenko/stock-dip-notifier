@@ -205,7 +205,7 @@ export default function TickerScreen() {
   const dipInfo = formatDipParts(dipValue, dipDays);
   const dipColor =
     dipInfo && dipInfo.value >= 0 ? theme.positive : dipInfo ? theme.negative : theme.muted;
-  const driverData = getMockDrivers(symbol);
+  const driverData = getDriverData(overview, symbol);
   const recovery = getMockRecovery(symbol);
   const plotSize = isWide ? 200 : Math.min(260, width - 64);
   const cardWidth = isWide ? (width - 48) / 2 : width - 32;
@@ -350,6 +350,100 @@ function parseNumber(value: unknown): number | null {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+type DriverData = ReturnType<typeof getMockDrivers>;
+
+const DRIVER_SUMMARIES: Record<"market" | "industry" | "company", string> = {
+  market: "Broader market risk-off today; many large caps are down with SPY weakness.",
+  industry: "Sector-specific pressure is driving most of the move right now.",
+  company: "Company-specific headlines appear to be the main driver of the drop.",
+};
+
+function getDriverData(overview: OverviewResponse | null, symbol: string): DriverData {
+  const factorsSummary = buildFactorSummary(overview?.key_factors);
+  const drivers = overview?.drivers && typeof overview.drivers === "object" ? overview.drivers : null;
+  const market = parseDriverValue(drivers, "market");
+  const industry = parseDriverValue(drivers, "industry");
+  const company = parseDriverValue(drivers, "company");
+
+  if (market === null || industry === null || company === null) {
+    const fallback = getMockDrivers(symbol);
+    return factorsSummary ? { ...fallback, summary: factorsSummary } : fallback;
+  }
+
+  const normalized = normalizeDrivers(market, industry, company);
+  const summary = factorsSummary ?? buildDriverSummary(normalized);
+  const confidence = buildDriverConfidence(normalized);
+  return { ...normalized, summary, confidence };
+}
+
+function parseDriverValue(
+  drivers: Record<string, unknown> | null,
+  key: "market" | "industry" | "company",
+): number | null {
+  if (!drivers) {
+    return null;
+  }
+  return parseNumber(drivers[key]);
+}
+
+function normalizeDrivers(market: number, industry: number, company: number) {
+  const safeMarket = Math.max(0, market);
+  const safeIndustry = Math.max(0, industry);
+  const safeCompany = Math.max(0, company);
+  const sum = safeMarket + safeIndustry + safeCompany;
+  if (!Number.isFinite(sum) || sum <= 0) {
+    return { market: 1 / 3, industry: 1 / 3, company: 1 / 3 };
+  }
+  return {
+    market: safeMarket / sum,
+    industry: safeIndustry / sum,
+    company: safeCompany / sum,
+  };
+}
+
+function buildDriverSummary(weights: { market: number; industry: number; company: number }): string {
+  const dominant = getDominantDriver(weights);
+  return DRIVER_SUMMARIES[dominant];
+}
+
+function getDominantDriver(weights: {
+  market: number;
+  industry: number;
+  company: number;
+}): "market" | "industry" | "company" {
+  if (weights.market >= weights.industry && weights.market >= weights.company) {
+    return "market";
+  }
+  if (weights.industry >= weights.market && weights.industry >= weights.company) {
+    return "industry";
+  }
+  return "company";
+}
+
+function buildDriverConfidence(weights: {
+  market: number;
+  industry: number;
+  company: number;
+}): number {
+  const maxWeight = Math.max(weights.market, weights.industry, weights.company);
+  return clamp(0.35 + maxWeight * 0.6, 0.35, 0.95);
+}
+
+function buildFactorSummary(factors?: string[] | null): string | null {
+  if (!factors?.length) {
+    return null;
+  }
+  const cleaned = factors.map((factor) => factor.trim()).filter(Boolean);
+  if (!cleaned.length) {
+    return null;
+  }
+  return cleaned.slice(0, 2).join(" - ");
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function extractBar(message: Record<string, unknown>): IntradayBar | null {
