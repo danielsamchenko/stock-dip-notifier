@@ -18,7 +18,7 @@ Hard rules:
 - Keep overview to 2–3 sentences maximum.
 - Drivers must sum to 1.0.
 - key_factors: 1–3 short bullets.
-- sources: pick up to 3 from the provided news_items; do not invent sources.
+- sources: pick up to 3 from the provided news_items; do not invent sources. Include the url when available.
 """
 
 TOOLS = [
@@ -55,6 +55,7 @@ TOOLS = [
                             "title": {"type": "string"},
                             "publisher": {"type": "string"},
                             "published_utc": {"type": "string"},
+                            "url": {"type": "string"},
                         },
                         "required": ["title", "publisher", "published_utc"],
                         "additionalProperties": False,
@@ -90,7 +91,7 @@ def _compact_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     news_items_in = payload.get("news_items") or []
     compact_items: List[Dict[str, Any]] = []
-    for item in news_items_in[:5]:  # keep a few, we will choose sources later
+    for item in news_items_in[:10]:  # keep more items for richer context
         if not isinstance(item, dict):
             continue
         compact_items.append(
@@ -99,6 +100,7 @@ def _compact_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
                 "publisher": _truncate(item.get("publisher"), 80),
                 "published_utc": _truncate(item.get("published_utc"), 40),
                 "summary": _truncate(item.get("summary"), 260),
+                "url": _truncate(item.get("url"), 240),
             }
         )
 
@@ -111,6 +113,44 @@ def _compact_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         },
         "news_items": compact_items,
     }
+
+
+def _attach_source_urls(tool_input: Dict[str, Any], compact: Dict[str, Any]) -> None:
+    sources = tool_input.get("sources")
+    if not isinstance(sources, list):
+        return
+    news_items = compact.get("news_items")
+    if not isinstance(news_items, list):
+        return
+
+    indexed: Dict[tuple[str | None, str | None, str | None], str] = {}
+    by_title: Dict[str, str] = {}
+    for item in news_items:
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url")
+        title = item.get("title")
+        if not isinstance(url, str) or not url:
+            continue
+        key = (title, item.get("publisher"), item.get("published_utc"))
+        indexed[key] = url
+        if isinstance(title, str) and title:
+            by_title.setdefault(title, url)
+
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        existing = source.get("url")
+        if isinstance(existing, str) and existing:
+            continue
+        key = (source.get("title"), source.get("publisher"), source.get("published_utc"))
+        url = indexed.get(key)
+        if not url:
+            title = source.get("title")
+            if isinstance(title, str) and title:
+                url = by_title.get(title)
+        if url:
+            source["url"] = url
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -191,6 +231,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     ensure_ascii=False,
                 ),
             }
+
+        _attach_source_urls(tool_input, compact)
 
         return {
             "statusCode": 200,
