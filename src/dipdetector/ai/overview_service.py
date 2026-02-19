@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+import re
 from typing import Any
 
 from sqlalchemy import func, select
@@ -12,6 +13,9 @@ from dipdetector import config
 from dipdetector.ai.lambda_client import invoke_overview
 from dipdetector.db.models import AIOverview, DailyPrice, Ticker
 from dipdetector.providers.massive_news import fetch_ticker_news
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+_DECIMAL_SPACE_RE = re.compile(r"(\d)\.\s+(\d)")
 
 
 def get_overview(session: Session, symbol: str, asof: date | None) -> dict[str, Any]:
@@ -26,7 +30,7 @@ def get_overview(session: Session, symbol: str, asof: date | None) -> dict[str, 
 
     cached = _get_cached_overview(session, normalized, asof_date)
     if cached:
-        return cached.overview_json
+        return _clean_result(dict(cached.overview_json), asof_date)
 
     dip_context = _compute_dip_context(session, ticker.id, asof_date)
     news_items = _fetch_news_items(normalized)
@@ -181,6 +185,7 @@ def _clean_result(result: dict[str, Any], asof_date: date) -> dict[str, Any]:
     overview_text = result.get("overview", "")
     if isinstance(overview_text, str):
         cleaned = _strip_banned_phrases(overview_text)
+        cleaned = _normalize_numeric_spacing(cleaned)
         result["overview"] = cleaned if cleaned else "Overview unavailable right now."
     else:
         result["overview"] = "Overview unavailable right now."
@@ -189,6 +194,14 @@ def _clean_result(result: dict[str, Any], asof_date: date) -> dict[str, Any]:
         result["asof"] = asof_date.isoformat()
     if "key_factors" not in result or not isinstance(result["key_factors"], list):
         result["key_factors"] = []
+    else:
+        normalized_factors: list[Any] = []
+        for factor in result["key_factors"]:
+            if isinstance(factor, str):
+                normalized_factors.append(_normalize_numeric_spacing(factor))
+            else:
+                normalized_factors.append(factor)
+        result["key_factors"] = normalized_factors
     if "sources" not in result or not isinstance(result["sources"], list):
         result["sources"] = []
     return result
@@ -201,7 +214,8 @@ def _strip_banned_phrases(text: str) -> str:
         "limited news catalyst",
         "macroeconomic uncertainty",
     ]
-    sentences = [part.strip() for part in text.replace("\n", " ").split(".") if part.strip()]
+    normalized = " ".join(text.replace("\n", " ").split())
+    sentences = [part.strip() for part in _SENTENCE_SPLIT_RE.split(normalized) if part.strip()]
     kept: list[str] = []
     for sentence in sentences:
         lowered = sentence.lower()
@@ -210,7 +224,14 @@ def _strip_banned_phrases(text: str) -> str:
         kept.append(sentence)
     if not kept:
         return ""
-    return ". ".join(kept) + "."
+    result = " ".join(kept)
+    if result and result[-1] not in ".!?":
+        result += "."
+    return result
+
+
+def _normalize_numeric_spacing(text: str) -> str:
+    return _DECIMAL_SPACE_RE.sub(r"\1.\2", text)
 
 
 def _upsert_overview(
