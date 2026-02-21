@@ -29,7 +29,6 @@ import {
   getTicker,
 } from "../../src/lib/api";
 import { getLogoUrl } from "../../src/lib/logos";
-import { getMockDrivers } from "../../src/lib/mockDrivers";
 import { getMockRecovery } from "../../src/lib/mockRecovery";
 import { IntradayBar, OverviewResponse, TickerDetail } from "../../src/types";
 
@@ -205,7 +204,7 @@ export default function TickerScreen() {
   const dipInfo = formatDipParts(dipValue, dipDays);
   const dipColor =
     dipInfo && dipInfo.value >= 0 ? theme.positive : dipInfo ? theme.negative : theme.muted;
-  const driverData = getDriverData(overview, symbol);
+  const driverData = getDriverData(overview);
   const recovery = getMockRecovery(symbol);
   const plotSize = isWide ? 200 : Math.min(260, width - 64);
   const cardWidth = isWide ? (width - 48) / 2 : width - 32;
@@ -352,7 +351,13 @@ function parseNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-type DriverData = ReturnType<typeof getMockDrivers>;
+type DriverData = {
+  market: number;
+  industry: number;
+  company: number;
+  summary: string;
+  confidence: number;
+};
 
 const DRIVER_SUMMARIES: Record<"market" | "industry" | "company", string> = {
   market: "Broader market risk-off today; many large caps are down with SPY weakness.",
@@ -360,7 +365,7 @@ const DRIVER_SUMMARIES: Record<"market" | "industry" | "company", string> = {
   company: "Company-specific headlines appear to be the main driver of the drop.",
 };
 
-function getDriverData(overview: OverviewResponse | null, symbol: string): DriverData {
+function getDriverData(overview: OverviewResponse | null): DriverData {
   const factorsSummary = buildFactorSummary(overview?.key_factors);
   const drivers = overview?.drivers && typeof overview.drivers === "object" ? overview.drivers : null;
   const market = parseDriverValue(drivers, "market");
@@ -368,8 +373,7 @@ function getDriverData(overview: OverviewResponse | null, symbol: string): Drive
   const company = parseDriverValue(drivers, "company");
 
   if (market === null || industry === null || company === null) {
-    const fallback = getMockDrivers(symbol);
-    return factorsSummary ? { ...fallback, summary: factorsSummary } : fallback;
+    return buildFallbackDrivers(factorsSummary);
   }
 
   const normalized = normalizeDrivers(market, industry, company);
@@ -440,6 +444,17 @@ function buildFactorSummary(factors?: string[] | null): string | null {
     return null;
   }
   return cleaned.slice(0, 2).join(" - ");
+}
+
+function buildFallbackDrivers(factorsSummary: string | null): DriverData {
+  const summary = factorsSummary ?? "Driver data not available yet.";
+  return {
+    market: 1 / 3,
+    industry: 1 / 3,
+    company: 1 / 3,
+    summary,
+    confidence: 0.35,
+  };
 }
 
 function clamp(value: number, min: number, max: number): number {
