@@ -31,6 +31,7 @@ DEFAULT_TICKERS = [
     "BLK",
     "BMY",
     "BRK-B",
+    "BUG",
     "C",
     "CAT",
     "CCI",
@@ -95,6 +96,7 @@ DEFAULT_TICKERS = [
     "MSFT",
     "NFLX",
     "NKE",
+    "NET",
     "NOW",
     "NVDA",
     "ORCL",
@@ -146,6 +148,7 @@ DEFAULT_TICKERS = [
     "XLV",
     "XLY",
     "XOM",
+    "ZS",
     "ZTS",
     # Crypto (Polygon X: pairs).
     "X:ADAUSD",
