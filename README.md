@@ -2,12 +2,6 @@
 
 A market site that tracks stock drops and recovery outlooks for stocks.
 
-**Live site**
-
-[http://stock-dip-web-396341922613-use2.s3-website.us-east-2.amazonaws.com](http://stock-dip-web-396341922613-use2.s3-website.us-east-2.amazonaws.com)
-
-Note: The live site may be broken at times because it’s under active development.
-
 ![Front page](docs/images/front-page.png)
 
 **What it does**
